@@ -325,7 +325,7 @@ if ($construire) {
     }
     Write-Host ""
     Write-Host "Ensuite :" -ForegroundColor Green
-    Write-Host "  1. Remplir docs/GDD.md (la boucle de jeu en une page) et la phase 0 de CLAUDE.md."
+    Write-Host "  1. Remplir docs/GDD.md : dans Claude Code, /rediger-le-gdd. Puis la phase 0 de CLAUDE.md."
     Write-Host "  2. Creer la page itch : https://$ItchUser.itch.io/$Slug"
 } else {
     Write-Host ""
@@ -336,10 +336,11 @@ if ($construire) {
         Write-Host "  $n. & `"tools/configurer.ps1`" -UnityPath `"<chemin>\Unity.exe`""; $n++
     }
     Write-Host "  $n. & `"tools/build.ps1`" -Lancer   (premier build : ~20 min, importe le projet)"; $n++
-    Write-Host "  $n. Remplir docs/GDD.md (la boucle de jeu en une page) et la phase 0 de CLAUDE.md."; $n++
+    Write-Host "  $n. Remplir docs/GDD.md : dans Claude Code, /rediger-le-gdd. Puis la phase 0 de CLAUDE.md."; $n++
     Write-Host "  $n. Creer la page itch : https://$ItchUser.itch.io/$Slug"
 }
 
 Write-Host ""
-Write-Host "Dans Claude Code : /carte-projet pour explorer, /verifier-en-jeu pour constater," -ForegroundColor Cyan
-Write-Host "/publier-itch pour sortir une version. Le detail : GUIDE-EQUIPE.md." -ForegroundColor Cyan
+Write-Host "Dans Claude Code : /rediger-le-gdd pour ecrire le design, /carte-projet pour explorer," -ForegroundColor Cyan
+Write-Host "/verifier-en-jeu pour constater, /publier-itch pour sortir une version. GUIDE-EQUIPE.md" -ForegroundColor Cyan
+Write-Host "dit qui fait quoi, dans quel ordre." -ForegroundColor Cyan

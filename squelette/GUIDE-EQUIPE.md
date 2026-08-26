@@ -16,12 +16,15 @@ Comment sont organisés les agents et les skills du projet, et quand invoquer le
 | **`story-teller`** | Textes en jeu, noms, descriptions, localisation | sonnet |
 | **`marketing`** | Page itch, pitch, briefs de captures | sonnet |
 
-## Les 3 skills (`.claude/skills/`)
+## Les 4 skills (`.claude/skills/`)
 
 - **`/carte-projet`** — index du code : où vit tel système, écran, donnée, outil, plus les
   checklists de câblage. **À invoquer avant toute exploration** plutôt que Glob/Grep à froid.
 - **`/verifier-en-jeu`** — construire, lancer, injecter de vraies entrées, capturer. À invoquer
   chaque fois qu'on s'apprête à écrire « ça devrait marcher ».
+- **`/rediger-le-gdd`** — remplir `docs/GDD.md` section par section, par entretien, dans l'ordre
+  où les décisions se prennent réellement. À invoquer au démarrage, et dès qu'une section est restée
+  vide alors qu'on s'apprête à coder le système qu'elle devrait décrire.
 - **`/publier-itch`** — la procédure de publication en version courte.
 
 ## Comment un chantier s'enchaîne
@@ -54,7 +57,7 @@ joué, et le testeur n'a rien senti.
 | Question | Document |
 |---|---|
 | Phase courante, conventions | `CLAUDE.md` (chargé automatiquement) |
-| *Pourquoi* le jeu est réglé ainsi | `docs/GDD.md` |
+| *Pourquoi* le jeu est réglé ainsi | `docs/GDD.md` — le remplir : `/rediger-le-gdd` |
 | *Où* se trouve quoi | skill `/carte-projet` |
 | Quels pièges guettent | `docs/PITFALLS_UNITY.md` |
 | Ce qui a été testé | `docs/TEST_REPORT.md` |

@@ -1,5 +1,8 @@
 # GDD — __GAME_NAME__
 
+> **Comment remplir ce document** : skill **`/rediger-le-gdd`** — il mène l'entretien section par
+> section, dans l'ordre où les décisions se prennent, et déroule l'exemple complet d'un petit jeu.
+
 **Source de vérité du design.** Toute décision de gameplay y est reportée *immédiatement*, avec ce
 qui la justifie. Le code dit *comment* ; ce document dit **pourquoi**.
 

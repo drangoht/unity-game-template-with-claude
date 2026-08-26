@@ -59,7 +59,9 @@ dose.** Continuer à doser est la manière la plus coûteuse de se tromper.
 
 1. **Maintenir `docs/GDD.md`** — toute décision y est reportée *immédiatement*, avec la mesure qui la
    justifie. Quand une conclusion est réfutée, **garde-la et marque-la comme telle** : le raisonnement
-   qui a mené à l'erreur a autant de valeur que la correction.
+   qui a mené à l'erreur a autant de valeur que la correction. S'il est encore à l'état de squelette
+   (sections en commentaire `<!-- -->`), le remplir en suivant le skill **`/rediger-le-gdd`** : il
+   donne l'ordre des sections et le niveau de précision attendu.
 2. **Spécifier assez précisément pour être implémenté sans retour** : valeurs, conditions de
    déblocage, comportement attendu.
 3. **Arbitrer le scope.** Une nouveauté qui n'ajoute pas une **raison de rejouer** coûte plus qu'elle

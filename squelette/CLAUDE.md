@@ -11,7 +11,8 @@ par session.
 `https://__ITCH_USER__.itch.io/__GAME_SLUG__`.
 
 - **Design complet → `docs/GDD.md`** : le consulter avant toute tâche de design ou d'implémentation,
-  et le tenir à jour à chaque décision.
+  et le tenir à jour à chaque décision. Pour le **remplir** (il démarre à l'état de squelette) →
+  skill **`/rediger-le-gdd`**.
 - **Localiser du code** (système, écran, donnée, outil) → invoquer le skill **`/carte-projet`**
   plutôt que Glob/Grep à froid. Le maintenir à jour dans le même commit qu'un changement structurel.
 - **Avant de coder** dans un domaine → lire **`docs/PITFALLS_UNITY.md`**. Y ajouter tout nouveau
@@ -28,7 +29,8 @@ par session.
 
 - [ ] Premier build : `& "tools/build.ps1" -Lancer` — il importe le projet (~20 min) et génère
       `Library/` + `ProjectSettings/`. Rien à ouvrir dans Unity Hub.
-- [ ] Remplir `docs/GDD.md` : la boucle de jeu en une page.
+- [ ] Remplir `docs/GDD.md` — skill **`/rediger-le-gdd`** : pitch, boucle de jeu et commandes
+      avant la première ligne de code ; le reste s'écrit système par système.
 - [ ] Créer la page itch (`Kind of project` = HTML pour un jeu web) et publier une 0.1.0.
 
 ## Équipe d'agents

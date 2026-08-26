@@ -76,7 +76,7 @@ mon-jeu/
 ├── .claude/
 │   ├── settings.json       Permissions + les deux hooks
 │   ├── agents/             9 agents
-│   ├── skills/             /carte-projet · /verifier-en-jeu · /publier-itch
+│   ├── skills/             /carte-projet · /rediger-le-gdd · /verifier-en-jeu · /publier-itch
 │   └── hooks/              guard.ps1 · run-rules-tests.ps1
 ├── .github/workflows/      CI : les tests de Rules/ sur un runner Linux, sans Unity
 ├── Assets/
@@ -153,7 +153,7 @@ tous se voient en trente secondes sur une capture.
 
 ## L'équipe d'agents
 
-9 agents, 3 skills, 2 hooks — détail dans `GUIDE-EQUIPE.md` du projet généré.
+9 agents, 4 skills, 2 hooks — détail dans `GUIDE-EQUIPE.md` du projet généré.
 
 | Agent | Rôle |
 |---|---|

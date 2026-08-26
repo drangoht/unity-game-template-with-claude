@@ -78,7 +78,7 @@ machine à l'autre. Tout passe par `environnement.ps1`.
 | Question | Document |
 |---|---|
 | Phase courante, conventions | `CLAUDE.md` (chargé automatiquement) |
-| *Pourquoi* le jeu est réglé ainsi | `docs/GDD.md` |
+| *Pourquoi* le jeu est réglé ainsi | `docs/GDD.md` — le remplir : skill `/rediger-le-gdd` |
 | Quels pièges guettent | `docs/PITFALLS_UNITY.md` |
 | Ce qui a été testé / mesuré | `docs/TEST_REPORT.md` |
 | Ce qui est réellement sorti | `docs/DEVLOG.md` |
