@@ -19,15 +19,18 @@ code, pas du design, mais de l'expérience réelle à l'écran.
 
 Le détail est dans le skill **`/verifier-en-jeu`**. En résumé :
 
-```
-# construire (l'editeur Unity doit etre FERME)
-"C:\Program Files\Unity\Hub\Editor\__UNITY_VERSION__\Editor\Unity.exe" -batchmode -quit \
-  -projectPath . -executeMethod __NAMESPACE__.EditorTools.BuildTools.RebuildEverything -logFile build.log
+```powershell
+# construire (l'editeur Unity doit etre FERME ; build.ps1 refuse de partir sinon)
+& "tools/build.ps1"
 
 # lancer, agir, capturer
 py tools/piloter_jeu.py --lancer --attendre 4 --touches "entree,bas,entree" --capture docs/verif.png
 py tools/piloter_jeu.py --maintenir droite --duree 1.2 --capture docs/deplacement.png
 ```
+
+⚠ **Jamais le chemin d'`Unity.exe` en dur** : il diffère d'une machine à l'autre. `build.ps1` le
+résout et le mémorise ; s'il ne le trouve pas, il indique lui-même quoi lancer pour le lui
+apprendre.
 
 **Le tampon `v<version>-<sha>` s'affiche en bas à droite : consigne-le dans ton rapport.** C'est lui
 qui dit sur quelle version portait la session — sans lui, une capture ne prouve rien.

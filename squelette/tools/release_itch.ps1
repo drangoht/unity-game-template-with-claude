@@ -20,6 +20,10 @@
     construit, la methode d'editeur qui le produit, ce qu'on exige d'y trouver, ce qu'on copie et
     le canal itch.
 
+.PARAMETER UnityPath
+    Chemin d'Unity.exe. Inutile apres la premiere fois : il est resolu par tools/environnement.ps1
+    puis memorise dans tools/local.settings.json.
+
 .PARAMETER SkipBuild
     Reutilise le dossier de build deja present. A n'employer que si l'on vient de le construire
     soi-meme : le script verifie de toute facon que son tampon porte la version demandee.
@@ -40,6 +44,7 @@ param(
     [ValidateSet("web", "windows")][string]$Target = "web",
     [string]$Itch = "__ITCH_USER__/__GAME_SLUG__",
     [string]$Channel = "",
+    [string]$UnityPath = "",
     [switch]$SkipBuild,
     [switch]$DryRun
 )
@@ -48,8 +53,9 @@ param(
 # prend pour une erreur. Seul $LASTEXITCODE fait foi apres un executable natif.
 $ErrorActionPreference = "Continue"
 
+. "$PSScriptRoot\environnement.ps1"
+
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
-$Unity       = "C:\Program Files\Unity\Hub\Editor\__UNITY_VERSION__\Editor\Unity.exe"
 $Settings    = Join-Path $ProjectRoot "ProjectSettings\ProjectSettings.asset"
 
 function Fail($msg) { Write-Host "ERREUR : $msg" -ForegroundColor Red; exit 1 }
@@ -62,16 +68,12 @@ function Fail($msg) { Write-Host "ERREUR : $msg" -ForegroundColor Red; exit 1 }
 # se joue pas. Rien ne le signale.
 if ($Target -eq "web") {
     $BuildDir       = Join-Path $ProjectRoot "Build\Web"
-    $BuildMethod    = "__NAMESPACE__.EditorTools.BuildTools.RebuildWeb"
-    $SuccessPattern = "Build web reussi"
     $DefaultChannel = "html5"
     # index.html : la page elle-meme. Build\ : le wasm, les donnees et le chargeur.
     # build_stamp.json : la carte d'identite de ce qui vient d'etre construit.
     $Required       = @("index.html", "Build", "build_stamp.json")
 } else {
     $BuildDir       = Join-Path $ProjectRoot "Build\Windows"
-    $BuildMethod    = "__NAMESPACE__.EditorTools.BuildTools.RebuildEverything"
-    $SuccessPattern = "Build Windows reussi"
     $DefaultChannel = "windows"
     $Required       = @("__NAMESPACE__.exe", "__NAMESPACE___Data", "UnityPlayer.dll", "build_stamp.json")
 }
@@ -79,8 +81,10 @@ if ($Target -eq "web") {
 if (-not $Channel) { $Channel = $DefaultChannel }
 $Staging = Join-Path $ProjectRoot "Build\staging-$Target"
 
-if (-not (Test-Path $Unity))    { Fail "Unity introuvable : $Unity" }
-if (-not (Test-Path $Settings)) { Fail "ProjectSettings.asset absent : ouvre le projet une fois dans Unity Hub avant de publier." }
+# Unity est resolu MAINTENANT, avant de toucher a quoi que ce soit : decouvrir qu'il manque apres
+# avoir pose bundleVersion laisserait le depot modifie pour rien.
+if (-not $SkipBuild) { $null = Get-UnityPathOuMourir -UnityPath $UnityPath -Memoriser -Silencieux }
+if (-not (Test-Path $Settings)) { Fail "ProjectSettings.asset absent : lance une premiere fois `"tools/build.ps1`" (il importe le projet) avant de publier." }
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { Fail "Version attendue au format x.y.z (recu : $Version)" }
 
 # --- Butler ------------------------------------------------------------------------
@@ -94,7 +98,7 @@ if (-not $butler) {
 $Butler = $butler.FullName
 
 Write-Host "Butler  : $Butler" -ForegroundColor Cyan
-Write-Host "Cible   : $Target ($BuildMethod)" -ForegroundColor Cyan
+Write-Host "Cible   : $Target" -ForegroundColor Cyan
 Write-Host "Version : $Version  ->  $Itch`:$Channel" -ForegroundColor Cyan
 
 # --- 1. Version dans les reglages du projet ----------------------------------------
@@ -107,31 +111,10 @@ Write-Host "bundleVersion pose a $Version." -ForegroundColor DarkGray
 
 # --- 2. Build ----------------------------------------------------------------------
 if (-not $SkipBuild) {
-    if (Get-Process Unity -ErrorAction SilentlyContinue) {
-        Fail "L'editeur Unity est ouvert : le build en ligne de commande echouerait. Ferme-le et relance."
-    }
-
-    $log = Join-Path $env:TEMP "__GAME_SLUG__-release-$Target.log"
-    Write-Host "Build $Target en cours (log : $log)..." -ForegroundColor Yellow
-
-    # ⚠ Start-Process et non l'operateur d'appel `&` : lance par `&`, Unity rend la main
-    # IMMEDIATEMENT sans rien faire, $LASTEXITCODE reste vide, et le script poursuit comme si tout
-    # allait bien. Un lancement qui echoue en silence est pire qu'un lancement qui echoue.
-    $proc = Start-Process -FilePath $Unity -PassThru -Wait -NoNewWindow -ArgumentList @(
-        "-batchmode", "-quit",
-        "-projectPath", $ProjectRoot,
-        "-logFile", $log,
-        "-executeMethod", $BuildMethod
-    )
-
-    if ($proc.ExitCode -ne 0)  { Fail "Build Unity echoue (code $($proc.ExitCode)) - voir $log" }
-    if (-not (Test-Path $log)) { Fail "Build Unity : aucun journal ecrit ($log) - Unity n'a pas demarre." }
-
-    # Un code retour nul ne distingue pas « construit » de « rien a faire » : on exige la reussite
-    # explicitement annoncee par BuildTools.
-    if (-not (Select-String -Path $log -Pattern $SuccessPattern -Quiet)) {
-        Fail "Build $Target : aucune reussite confirmee dans $log"
-    }
+    # Un seul chemin de build dans tout le depot : build.ps1 resout Unity, refuse de partir si
+    # l'editeur est ouvert, et exige la reussite ANNONCEE par BuildTools dans le journal.
+    & (Join-Path $PSScriptRoot "build.ps1") -Target $Target -UnityPath $UnityPath
+    if ($LASTEXITCODE -ne 0) { Fail "Build $Target echoue - voir Logs\build-$Target.log" }
 } else {
     Write-Host "SkipBuild : dossier existant reutilise." -ForegroundColor DarkGray
     if (-not (Test-Path $BuildDir)) { Fail "SkipBuild demande mais aucun build : $BuildDir" }

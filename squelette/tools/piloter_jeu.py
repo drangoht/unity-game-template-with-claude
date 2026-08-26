@@ -228,7 +228,7 @@ def lancer() -> int:
     if not EXE.exists():
         raise SystemExit(
             f"Build absent : {EXE}\n"
-            "Construire d'abord : Unity.exe -batchmode -quit -projectPath . "
+            "Construire d'abord : powershell -File tools/build.ps1 "
             "-executeMethod __NAMESPACE__.EditorTools.BuildTools.RebuildEverything -logFile <log>"
         )
 

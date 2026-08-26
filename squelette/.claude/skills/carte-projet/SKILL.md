@@ -63,9 +63,15 @@ Logique pure, sans dépendance moteur, **testée**. C'est ici que vit toute règ
 
 | Outil | Ce qu'il fait |
 |---|---|
+| `build.ps1` | **Construit** (Windows/web), et `-Lancer` enchaîne sur la capture. Seul appelant d'Unity |
+| `configurer.ps1` | Dit où sont Unity, Python, dotnet, butler — et ce qui manque |
+| `environnement.ps1` | Résout et mémorise ces chemins (`local.settings.json`, hors git). À dot-sourcer |
 | `release_itch.ps1` | Publie une version (build → butler push → commit). Skill `/publier-itch` |
 | `serve_web.py` | Sert `Build/Web` **sans cache navigateur** — indispensable après un rebuild |
 | `piloter_jeu.py` | Lance le build Windows, injecte des touches, capture la fenêtre |
+
+⚠ **Aucun chemin d'outil externe en dur nulle part** : `Unity.exe` n'est pas au même endroit d'une
+machine à l'autre. Tout passe par `environnement.ps1`.
 
 ## §Docs
 

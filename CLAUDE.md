@@ -10,21 +10,33 @@ Ce qu'il fait et comment on s'en sert : **`README.md`**.
 
 ```
 README.md              Le mode d'emploi (c'est LE document du dépôt)
-tools/new-game.ps1     Le scaffolder : copie, substitue, renomme, git init
+tools/new-game.ps1     Le scaffolder : demande, copie, substitue, renomme, git init, premier build
+local.settings.json    Réponses mémorisées (dossier des jeux, Unity, pseudo itch) — NON versionné
 squelette/             Tout ce qui est copié dans un nouveau projet
 ```
+
+Le scaffolder n'a **aucune valeur par défaut tirée de cette machine** : ni dossier de destination,
+ni chemin d'Unity. Ce qui manque est demandé, puis mémorisé dans `local.settings.json`. Les
+fonctions de détection vivent dans `squelette/tools/environnement.ps1`, que `new-game.ps1`
+dot-source — une seule implémentation, pas deux qui divergent.
 
 ## Modifier le squelette
 
 1. **Éditer dans `squelette/`**, jamais dans un projet généré en espérant que ça remonte.
 2. **Utiliser les jetons de la table du README** — pas de nom de jeu en dur, pas de chemin absolu.
+   Un chemin d'outil externe (Unity, Python) passe **obligatoirement** par
+   `tools/environnement.ps1` : `Get-UnityPathOuMourir`, `Resolve-PythonCommand`. Un chemin écrit en
+   dur marche sur la machine où on l'a écrit et nulle part ailleurs — symptôme chez le suivant :
+   « Unity.exe : Le terme «Unity.exe» n'est pas reconnu comme nom d'applet de commande ».
 3. Ce qui n'est pas une extension texte connue (`$extensions` dans `new-game.ps1`) n'est **pas**
    substitué : ajouter l'extension si un nouveau type de fichier porte un jeton.
 4. **Éprouver l'instanciation** avant de committer :
    ```powershell
-   & "tools/new-game.ps1" -Name "Test Gabarit" -Destination "$env:TEMP" -NoGit
+   & "tools/new-game.ps1" -Name "Test Gabarit" -Destination "$env:TEMP" -ItchUser essai -NoGit
    ```
-   Le script signale lui-même les jetons survivants. Supprimer le dossier d'essai ensuite.
+   Le script signale lui-même les jetons survivants. Aucun argument n'est demandé de façon
+   interactive ici : c'est la forme à employer depuis un agent ou un CI, où `Read-Host` ne peut
+   pas répondre. Supprimer le dossier d'essai ensuite.
 
 ## Ajouter un piège à `docs/PITFALLS_UNITY.md`
 
@@ -49,7 +61,7 @@ documente sans la câbler n'existe pas.*
 
 ## Origine
 
-Distillé de deux projets publiés : **Chimera Protocol** (`C:\CODE\JEUX\chimera-protocol`, survivor
-roguelite, ~800 tests, équipe de 9 agents) et **Smily Volley** (`C:\CODE\JEUX\Smily-Volley`, jeu web,
-scène construite par code, portage tactile). Quand l'un des deux apprend quelque chose de
-généralisable, le remonter ici ; quand l'un des deux donne tort au gabarit, le corriger ici.
+Distillé de deux projets publiés : **Chimera Protocol** (survivor roguelite, ~800 tests, équipe de
+9 agents) et **Smily Volley** (jeu web, scène construite par code, portage tactile). Quand l'un des
+deux apprend quelque chose de généralisable, le remonter ici ; quand l'un des deux donne tort au
+gabarit, le corriger ici.

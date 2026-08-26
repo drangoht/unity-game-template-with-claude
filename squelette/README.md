@@ -12,16 +12,19 @@ Unity __UNITY_VERSION__ · C# · URP 2D · Input System · publié sur
 ## Démarrer
 
 ```powershell
-# 1. Ouvrir une premiere fois dans Unity Hub  ->  genere ProjectSettings/ et Library/
-#    (compter ~20 min : le premier import traite tous les assets)
+# Construire, lancer, capturer -- sans jamais ouvrir l'editeur
+& "tools/build.ps1" -Lancer
+```
 
-# 2. Construire et lancer, sans ouvrir l'editeur
-& "C:\Program Files\Unity\Hub\Editor\__UNITY_VERSION__\Editor\Unity.exe" `
-    -batchmode -quit -projectPath "." `
-    -executeMethod __NAMESPACE__.EditorTools.BuildTools.RebuildEverything `
-    -logFile build.log
+C'est tout : le premier build **importe le projet lui-même** (il génère `Library/` et
+`ProjectSettings/` — compter ~20 min), il n'y a donc rien à ouvrir dans Unity Hub au préalable.
 
-py tools/piloter_jeu.py --lancer --attendre 4 --capture docs/premier-lancement.png
+`build.ps1` trouve Unity seul parmi les installations d'Unity Hub, puis retient son chemin dans
+`tools/local.settings.json` (non versionné). S'il ne le trouve pas — Unity installé sur un autre
+disque, par exemple — le lui apprendre une fois :
+
+```powershell
+& "tools/configurer.ps1" -UnityPath "<dossier-unity>\__UNITY_VERSION__\Editor\Unity.exe"
 ```
 
 ## Structure
@@ -37,7 +40,8 @@ Assets/
   Scenes/Game.unity  ⚠ ARTEFACT régénéré par SceneBuilder
   WebGLTemplates/    Page hôte du build web
 tests/               xUnit sur Assets/Scripts/Rules/ — aucun moteur requis
-tools/               release_itch.ps1 · serve_web.py · piloter_jeu.py
+tools/               build.ps1 · configurer.ps1 · environnement.ps1 · release_itch.ps1
+                     serve_web.py · piloter_jeu.py
 docs/                GDD · PITFALLS_UNITY · RELEASE · DEVLOG · TEST_REPORT · ITCH_STORE_PAGE
 .claude/             9 agents · 3 skills · 2 hooks
 ```
@@ -63,16 +67,20 @@ métadonnées Windows (qui décrivent le moteur) ne disent quelle version on reg
 
 | But | Commande |
 |---|---|
-| Build Windows | `-executeMethod __NAMESPACE__.EditorTools.BuildTools.RebuildEverything` |
-| Build web | `-executeMethod __NAMESPACE__.EditorTools.BuildTools.RebuildWeb` |
+| Build Windows | `& "tools/build.ps1"` |
+| Build web | `& "tools/build.ps1" -Target web` |
+| Build + lancement + capture | `& "tools/build.ps1" -Lancer -Capture docs/x.png` |
 | Tests | `dotnet test tests/__NAMESPACE__.Tests.csproj` |
 | Lancer et capturer | `py tools/piloter_jeu.py --lancer --capture docs/x.png` |
 | Servir le build web | `py tools/serve_web.py` (⚠ **sans cache** — voir PITFALLS) |
 | Publier | `& "tools/release_itch.ps1" -Version X.Y.Z -DryRun` |
+| Dire où sont Unity et Python | `& "tools/configurer.ps1" -UnityPath "..."` |
 
-⚠ **L'éditeur Unity doit être fermé** pour tout build en ligne de commande.
-⚠ En PowerShell, lancer Unity par `&` rend la main **immédiatement sans rien faire** :
-`Start-Process -Wait`.
+⚠ **L'éditeur Unity doit être fermé** pour tout build en ligne de commande — `build.ps1` refuse de
+partir sinon.
+⚠ N'appeler `Unity.exe` à la main que si l'on sait pourquoi : son chemin change d'une machine à
+l'autre, et lancé par `&` en PowerShell il rend la main **immédiatement sans rien faire**
+(`Start-Process -Wait`). `build.ps1` traite les deux.
 
 ## Travailler avec Claude Code
 

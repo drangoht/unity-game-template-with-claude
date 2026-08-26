@@ -16,32 +16,52 @@ projets publiés, **Chimera Protocol** et **Smily Volley**.
 
 ## Créer un jeu
 
+Depuis le dossier du gabarit :
+
 ```powershell
-cd C:\CODE\JEUX\unity-game-template
-& "tools/new-game.ps1" -Name "Mon Jeu" -Pitch "Un puzzle a deux boutons."
+& "tools/new-game.ps1"
+```
+
+Le script demande ce qui lui manque — nom du jeu, **où ranger les projets**, pseudo itch — et
+détecte Unity tout seul. Tout se donne aussi en une ligne :
+
+```powershell
+& "tools/new-game.ps1" -Name "Mon Jeu" -Destination "D:\Jeux" -Pitch "Un puzzle a deux boutons." -Build
 ```
 
 Ce qui se passe :
 
-1. `squelette/` est copié vers `C:\CODE\JEUX\mon-jeu` ;
+1. `squelette/` est copié vers `<dossier des jeux>\mon-jeu` ;
 2. les jetons `__XXX__` sont remplacés dans les fichiers **texte**, et les dossiers qui en portent
    sont renommés ;
 3. le script vérifie qu'**aucun jeton ne survit** — un jeton oublié compile (c'est un identifiant
    valide) et ne se manifeste que bien plus tard, sous la forme d'un chemin qui n'existe pas ;
-4. `git init` + premier commit ;
-5. le script affiche ce qu'il reste à faire.
+4. le chemin d'Unity est écrit dans `tools/local.settings.json` du projet (hors git) ;
+5. `git init` + premier commit ;
+6. le premier build est proposé — c'est lui qui importe le projet (~20 min).
 
-Paramètres : `-Slug`, `-Namespace`, `-ItchUser`, `-Company`, `-Pitch`, `-Commandes`,
-`-UnityVersion`, `-Destination`, `-NoGit`. Le slug et le namespace sont déduits du nom si on ne les
-donne pas.
+Paramètres : `-Slug`, `-Namespace`, `-ItchUser`, `-Company`, `-Pitch`, `-Commandes`, `-UnityPath`,
+`-UnityVersion`, `-Destination`, `-Build`, `-NoGit`. Le slug et le namespace sont déduits du nom,
+la version d'Unity du chemin de l'éditeur trouvé.
 
-### Ce que le script ne peut pas faire
+### Rien de propre à une machine dans le dépôt
 
-**Créer le projet côté Unity.** Le dossier produit contient `Assets/`, `Packages/` et
-`ProjectSettings/ProjectVersion.txt` — c'est ce qu'Unity Hub demande pour reconnaître un projet.
-**Ouvrir le dossier une fois dans Unity Hub** génère le reste (`Library/`, `ProjectSettings/`
-complet) et prend une vingtaine de minutes au premier import. Ensuite, tout se pilote en ligne de
-commande.
+Ce gabarit ne connaît ni l'arborescence de vos jeux, ni l'endroit où Unity est installé.
+
+- **Où ranger le projet** est demandé à la première utilisation (`-Destination`), puis mémorisé
+  dans `local.settings.json`, à la racine du gabarit et **non versionné**.
+- **Unity** est cherché dans les installations d'Unity Hub, y compris le *secondary install path*
+  (l'autre disque). S'il reste introuvable, le script le demande, et tous les outils du projet
+  généré savent ensuite où il est. Un chemin d'éditeur écrit en dur produit toujours le même
+  symptôme sur la machine suivante : `Unity.exe : Le terme «Unity.exe» n'est pas reconnu comme nom
+  d'applet de commande`.
+- **Le pseudo itch** suit le même chemin : demandé une fois, mémorisé.
+
+### Le premier build fait l'import — pas Unity Hub
+
+Le dossier produit contient `Assets/`, `Packages/` et `ProjectSettings/ProjectVersion.txt`. Le
+**premier `tools/build.ps1` importe le projet en batchmode** et génère le reste (`Library/`,
+`ProjectSettings/` complet) : compter une vingtaine de minutes, sans ouvrir Unity Hub ni l'éditeur.
 
 ---
 
@@ -66,9 +86,14 @@ mon-jeu/
 │   └── WebGLTemplates/     Page hôte : cadrage, tactile, audio, garde-cache
 ├── .gitattributes          LF partout + fusion YAML Unity + règles LFS pour les gros assets
 ├── Packages/manifest.json  URP + Input System + uGUI
+├── ProjectSettings/        Version d'Unity, et Burst éteint côté Windows — voir son LISEZ-MOI
 ├── docs/                   GDD · PITFALLS_UNITY · RELEASE · DEVLOG · TEST_REPORT · ITCH_STORE_PAGE
 ├── tests/                  xUnit sur Rules/ — aucun moteur requis
-└── tools/                  release_itch.ps1 · serve_web.py · piloter_jeu.py
+└── tools/
+    ├── build.ps1           Construire (Windows/web), lancer, capturer — LE point d'entrée
+    ├── configurer.ps1      Dire où sont Unity et Python ; diagnostiquer l'environnement
+    ├── environnement.ps1   Résolution + mémorisation des chemins d'outils
+    └── release_itch.ps1 · serve_web.py · piloter_jeu.py
 ```
 
 ---
@@ -168,11 +193,11 @@ Les jetons reconnus par `new-game.ps1` :
 | `__GAME_NAME__` | `Smily Volley` | menu éditeur, titre de fenêtre, docs |
 | `__GAME_SLUG__` | `smily-volley` | slug itch, nom du dossier |
 | `__NAMESPACE__` | `SmilyVolley` | namespace C#, nom de l'exe, dossier WebGLTemplates |
-| `__ITCH_USER__` | `drangoht` | URL de la page itch |
-| `__COMPANY__` | `drangoht` | `PlayerSettings.companyName`, chemin de sauvegarde |
+| `__ITCH_USER__` | `mon-pseudo` | URL de la page itch |
+| `__COMPANY__` | `mon-pseudo` | `PlayerSettings.companyName`, chemin de sauvegarde |
 | `__PITCH__` | … | description de la page, GDD |
 | `__COMMANDES__` | … | note affichée pendant le chargement web |
-| `__UNITY_VERSION__` | `6000.5.6f1` | chemin de l'éditeur, `ProjectVersion.txt` |
+| `__UNITY_VERSION__` | `6000.5.6f1` | `ProjectVersion.txt`, docs — déduit de l'éditeur trouvé |
 | `__DATE__` | `2026-08-26` | date de création dans `CLAUDE.md` |
 
 ⚠ **`__BUILD_ID__`, dans `index.html`, n'est PAS un jeton du gabarit** : il est remplacé par
@@ -186,7 +211,10 @@ corrompt sans rien signaler.
 
 ## Prérequis
 
-- **Unity 6** (`6000.5.6f1` par défaut) installé via Unity Hub.
+- **Unity 6** installé via Unity Hub, où que ce soit sur le disque : il est détecté, et se donne
+  par `-UnityPath` sinon.
 - **.NET 8 SDK** pour `dotnet test`.
 - **Python 3** pour `serve_web.py` et `piloter_jeu.py` (+ `pillow` pour les captures).
 - **L'app itch.io**, qui fournit et met à jour `butler.exe` toute seule.
+
+`tools/configurer.ps1`, dans un projet généré, dit lequel manque et où sont les autres.

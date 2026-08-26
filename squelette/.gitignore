@@ -29,6 +29,11 @@
 # Assets importés dont Unity régénère le .meta
 /[Aa]ssets/[Pp]lugins/[Ee]ditor/JetBrains*
 
+# Chemins d'outils propres a cette machine (Unity, Python), resolus par tools/environnement.ps1.
+# Les versionner enverrait le chemin d'un poste sur tous les autres -- et le symptome, la-bas,
+# serait « Unity.exe : Le terme «Unity.exe» n'est pas reconnu comme nom d'applet de commande ».
+tools/local.settings.json
+
 # ---------------------------------------------------------------- C# / .NET
 bin/
 obj/

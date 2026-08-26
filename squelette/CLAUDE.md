@@ -26,8 +26,8 @@ par session.
 
 **Phase 0 — mise en place** (démarrée le __DATE__)
 
-- [ ] Ouvrir le projet une fois dans Unity Hub (génère `ProjectSettings/`, `Library/`).
-- [ ] Premier build : `/verifier-en-jeu`.
+- [ ] Premier build : `& "tools/build.ps1" -Lancer` — il importe le projet (~20 min) et génère
+      `Library/` + `ProjectSettings/`. Rien à ouvrir dans Unity Hub.
 - [ ] Remplir `docs/GDD.md` : la boucle de jeu en une page.
 - [ ] Créer la page itch (`Kind of project` = HTML pour un jeu web) et publier une 0.1.0.
 
@@ -42,11 +42,10 @@ instructions fausses avec autorité. Quand une phase se termine, relire les agen
 
 ## Conventions
 
-- **Build** : `Unity.exe -batchmode -quit -projectPath . -executeMethod
-  __NAMESPACE__.EditorTools.BuildTools.RebuildEverything` → `Build\Windows\__NAMESPACE__.exe`.
-  Web : `...BuildTools.RebuildWeb` → `Build\Web\`. ⚠ L'éditeur Unity doit être **fermé**.
-  ⚠ Lancer Unity par `&` en PowerShell rend la main **immédiatement sans rien faire** :
-  `Start-Process -Wait`.
+- **Build** : `& "tools/build.ps1"` → `Build\Windows\__NAMESPACE__.exe` ; `-Target web` →
+  `Build\Web\` ; `-Lancer` enchaîne lancement et capture. ⚠ L'éditeur Unity doit être **fermé**.
+  ⚠ Ne jamais écrire `Unity.exe` en dur : son chemin dépend de la machine, `tools/environnement.ps1`
+  le résout et le mémorise (`-UnityPath`, ou `tools/configurer.ps1`, pour le lui apprendre).
 - **Publication** : `tools/release_itch.ps1 -Version X.Y.Z` (essayer d'abord avec `-DryRun`). Le
   script pose lui-même `bundleVersion` — **ne pas l'éditer à la main**.
 - **La scène est un ARTEFACT** : `Assets/Scenes/Game.unity` est régénérée par `SceneBuilder.Build()`
@@ -68,7 +67,8 @@ instructions fausses avec autorité. Quand une phase se termine, relire les agen
   Commentaires en français, et ils expliquent le **pourquoi**.
 - Le tuning se règle **sans recompiler** dès qu'une valeur mérite d'être essayée plusieurs fois.
 - Palette UI : <!-- codes hexa --> · Police : <!-- famille -->
-- Python : `C:\Users\drang\AppData\Local\Programs\Python\Python313\python.exe` (pas dans le PATH).
+- **Aucun chemin d'outil en dur** (Unity, Python) : `tools/environnement.ps1` les résout et les
+  mémorise dans `tools/local.settings.json`, qui n'est pas versionné.
 
 ## Maintenance de la doc
 

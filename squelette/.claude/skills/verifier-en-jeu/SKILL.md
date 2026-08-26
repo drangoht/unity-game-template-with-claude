@@ -13,26 +13,29 @@ Tout se pilote **sans ouvrir l'éditeur**.
 
 ## 1. Construire
 
-```
-"C:\Program Files\Unity\Hub\Editor\__UNITY_VERSION__\Editor\Unity.exe" -batchmode -quit \
-  -projectPath "." \
-  -executeMethod __NAMESPACE__.EditorTools.BuildTools.RebuildEverything \
-  -logFile build.log
+```powershell
+& "tools/build.ps1"              # Windows -> Build\Windows\__NAMESPACE__.exe
+& "tools/build.ps1" -Target web  # Web     -> Build\Web
+& "tools/build.ps1" -Lancer      # ... puis lance le jeu et capture l'écran
 ```
 
-Cette commande active URP, régénère `Assets/Scenes/Game.unity` depuis `SceneBuilder` et compile
-`Build\Windows\__NAMESPACE__.exe`. Variante web : `...BuildTools.RebuildWeb` → `Build\Web`.
+Le build active URP, régénère `Assets/Scenes/Game.unity` depuis `SceneBuilder`, compile, et écrit
+son journal dans `Logs\build-<cible>.log`.
 
-⚠ **Elle échoue si l'éditeur Unity est ouvert** (« another Unity instance is running »). Vérifier
-`Get-Process Unity` ou `Temp\UnityLockfile` avant de lancer — et **ne jamais tuer l'éditeur** : soit
-attendre, soit travailler sur une copie de `Assets` + `Packages` + `ProjectSettings` dans le
-scratchpad.
+⚠ **Ne pas invoquer `Unity.exe` directement.** Son chemin n'est pas le même d'une machine à l'autre
+(`Program Files`, ou n'importe quel disque via le *secondary install path* du Hub) ; écrit en dur,
+il donne « Unity.exe : Le terme «Unity.exe» n'est pas reconnu comme nom d'applet de commande ».
+`build.ps1` le résout, le mémorise, et couvre les trois pièges ci-dessous.
+
+⚠ **Le build échoue si l'éditeur Unity est ouvert** (« another Unity instance is running ») :
+`build.ps1` refuse alors de partir. **Ne jamais tuer l'éditeur** — soit attendre, soit travailler
+sur une copie de `Assets` + `Packages` + `ProjectSettings` dans le scratchpad.
 
 ⚠ En PowerShell, lancer Unity par l'opérateur `&` rend la main **immédiatement sans rien faire** :
-utiliser `Start-Process -Wait`.
+il faut `Start-Process -Wait`.
 
-⚠ Le **premier** build d'une plateforme réimporte tous les assets (plusieurs dizaines de minutes) ;
-les suivants sont rapides.
+⚠ Le **premier** build importe tout le projet (plusieurs dizaines de minutes) et génère `Library/`
+et `ProjectSettings/` — rien à ouvrir dans Unity Hub avant. Les suivants sont rapides.
 
 ## 2. Lancer, agir, capturer
 

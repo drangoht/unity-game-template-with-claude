@@ -65,6 +65,7 @@ automatique et fait échouer l'appel.
 
 | Symptôme | Cause |
 |---|---|
+| « Unity.exe … n'est pas reconnu » | Chemin d'Unity jamais donné : `& "tools/configurer.ps1" -UnityPath "…"` |
 | « another Unity instance is running » | L'éditeur est ouvert. Ne pas le tuer : attendre. |
 | Build « échoue » mais aucun log écrit | Unity lancé par `&` au lieu de `Start-Process -Wait` |
 | « Le build porte la version X » | Build périmé : `-SkipBuild` sur un dossier non reconstruit |

@@ -46,7 +46,7 @@
 #
 #   git config --global merge.unityyamlmerge.name "Unity SmartMerge"
 #   git config --global merge.unityyamlmerge.driver \
-#     '"C:/Program Files/Unity/Hub/Editor/6000.5.6f1/Editor/Data/Tools/UnityYAMLMerge.exe" merge -p %O %A %B %A'
+#     '"<dossier-unity>/<version>/Editor/Data/Tools/UnityYAMLMerge.exe" merge -p %O %A %B %A'
 #   git config --global merge.unityyamlmerge.recursive binary
 #
 # Sans cette configuration, Git retombe simplement sur la fusion par défaut :

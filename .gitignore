@@ -1,6 +1,10 @@
 # Le gabarit lui-meme ne se compile pas : rien a ignorer cote Unity.
 # Ce qui suit ne concerne que les essais d instanciation faits sur place.
 
+# Chemins propres a cette machine (dossier des jeux, Unity, Python), memorises par
+# tools/new-game.ps1. Les versionner imposerait l'arborescence d'un poste a tous les autres.
+local.settings.json
+
 *.log
 __pycache__/
 .vs/
