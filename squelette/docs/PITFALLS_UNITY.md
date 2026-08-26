@@ -103,7 +103,13 @@ d'ergonomie, pas un détail de présentation.
 `Start-Process -Wait`. *Un lancement qui échoue en silence est pire qu'un lancement qui échoue.*
 
 **⚠ Un code retour nul ne distingue pas « construit » de « rien à faire ».** Exiger une **phrase de
-réussite explicite** dans le journal (c'est ce que fait `release_itch.ps1`).
+réussite explicite** dans le journal (c'est ce que fait `tools/build.ps1`).
+
+**⚠ Pire : Unity quitte avec le code retour 0 alors que le build a ÉCHOUÉ.** Constaté sur un build
+Windows dont le journal dit `Build Finished, Result: Failure` (6 erreurs) puis, trente lignes plus
+bas, `Exiting batchmode successfully now!` et un code 0. Un script qui se fie au code retour empaquette
+et publie un dossier de build incomplet **sans que rien ne l'avertisse**. La phrase de réussite dans
+le journal est le seul signal fiable.
 
 **⚠ La DATE d'un artefact de build ne prouve rien** : Unity construit de façon incrémentale, un
 fichier identique n'est **pas réécrit**. Un horodatage antérieur au build est normal. Le premier
