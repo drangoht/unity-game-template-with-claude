@@ -1,0 +1,17 @@
+# Le gabarit lui-meme ne se compile pas : ces regles servent surtout a ce que le
+# contenu de squelette/ arrive intact dans les projets generes.
+
+# LF partout. Un checkout en CRLF ferait ressortir chaque fichier Unity comme modifie
+# des la premiere sauvegarde de l editeur, dans TOUS les projets issus du gabarit.
+* text=auto eol=lf
+
+*.cs    text diff=csharp eol=lf
+*.md    text eol=lf
+*.ps1   text eol=lf
+*.py    text eol=lf
+*.asset text eol=lf
+*.meta  text eol=lf
+
+*.png binary
+*.jpg binary
+*.ttf binary

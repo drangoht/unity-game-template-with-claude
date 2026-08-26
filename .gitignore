@@ -1,0 +1,14 @@
+# Le gabarit lui-meme ne se compile pas : rien a ignorer cote Unity.
+# Ce qui suit ne concerne que les essais d instanciation faits sur place.
+
+*.log
+__pycache__/
+.vs/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ATTENTION : ne JAMAIS ajouter *.meta ici.
+# squelette/Assets/Settings/*.meta portent les GUID des assets URP. Les perdre casse
+# le pipeline de rendu de tous les projets generes ensuite.
