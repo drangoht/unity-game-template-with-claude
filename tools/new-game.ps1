@@ -37,6 +37,11 @@
     Enchaine sur le premier build apres la creation. Il importe tout le projet (~20 min) et rend
     l'etape « ouvrir une fois dans Unity Hub » inutile.
 
+.PARAMETER NoCd
+    Reste dans le dossier courant. Par defaut le script place la session dans le projet cree : la
+    suite du travail (build, tests, Claude Code) s'y passe entierement, et un `tools/build.ps1`
+    lance depuis le gabarit construirait le mauvais projet -- ou rien du tout.
+
 .EXAMPLE
     & "tools/new-game.ps1"
     & "tools/new-game.ps1" -Name "Mon Jeu" -Pitch "Un puzzle a deux boutons." -Build
@@ -55,7 +60,8 @@ param(
     [string]$UnityVersion = "",
     [string]$Destination = "",
     [switch]$Build,
-    [switch]$NoGit
+    [switch]$NoGit,
+    [switch]$NoCd
 )
 
 $ErrorActionPreference = "Stop"
@@ -331,7 +337,7 @@ if ($construire) {
     Write-Host ""
     Write-Host "Ensuite, dans l'ordre :" -ForegroundColor Green
     $n = 1
-    Write-Host "  $n. cd `"$Cible`""; $n++
+    if ($NoCd) { Write-Host "  $n. cd `"$Cible`""; $n++ }
     if (-not $unity) {
         Write-Host "  $n. & `"tools/configurer.ps1`" -UnityPath `"<chemin>\Unity.exe`""; $n++
     }
@@ -344,3 +350,16 @@ Write-Host ""
 Write-Host "Dans Claude Code : /rediger-le-gdd pour ecrire le design, /carte-projet pour explorer," -ForegroundColor Cyan
 Write-Host "/verifier-en-jeu pour constater, /publier-itch pour sortir une version. GUIDE-EQUIPE.md" -ForegroundColor Cyan
 Write-Host "dit qui fait quoi, dans quel ordre." -ForegroundColor Cyan
+
+# --- 9. Se placer dans le projet ------------------------------------------------------
+# Un Set-Location fait depuis un script vaut pour la session appelante : la location est portee par
+# le runspace, pas par la portee du script. C'est ce qu'on veut ici -- tout ce qui suit (build,
+# tests, Claude Code) se passe dans le projet, et `tools/build.ps1` lance par megarde depuis le
+# gabarit ne construit rien.
+# ⚠ Sans effet si le script tourne dans un processus separe (`powershell -File new-game.ps1`) :
+# celui-ci meurt avec sa location. Le chemin est donc toujours affiche, pas seulement suggere.
+if (-not $NoCd) {
+    Set-Location -LiteralPath $Cible
+    Write-Host ""
+    Write-Host "Session placee dans $Cible" -ForegroundColor DarkGray
+}

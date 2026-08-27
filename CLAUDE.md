@@ -32,11 +32,13 @@ dot-source — une seule implémentation, pas deux qui divergent.
    substitué : ajouter l'extension si un nouveau type de fichier porte un jeton.
 4. **Éprouver l'instanciation** avant de committer :
    ```powershell
-   & "tools/new-game.ps1" -Name "Test Gabarit" -Destination "$env:TEMP" -ItchUser essai -NoGit
+   & "tools/new-game.ps1" -Name "Test Gabarit" -Destination "$env:TEMP" -ItchUser essai -NoGit -NoCd
    ```
    Le script signale lui-même les jetons survivants. Aucun argument n'est demandé de façon
    interactive ici : c'est la forme à employer depuis un agent ou un CI, où `Read-Host` ne peut
-   pas répondre. Supprimer le dossier d'essai ensuite.
+   pas répondre. `-NoCd` garde la session dans le gabarit — sans lui elle finit dans le dossier
+   d'essai, qu'on supprime juste après, et le shell se retrouve avec un cwd qui n'existe plus.
+   Supprimer le dossier d'essai ensuite.
 
 ## Ajouter un piège à `docs/PITFALLS_UNITY.md`
 

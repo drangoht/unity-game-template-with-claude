@@ -23,11 +23,22 @@ Depuis le dossier du gabarit :
 ```
 
 Le script demande ce qui lui manque — nom du jeu, **où ranger les projets**, pseudo itch — et
-détecte Unity tout seul. Tout se donne aussi en une ligne :
+détecte Unity tout seul. Tout se donne aussi en une ligne, et c'est la forme à employer depuis un
+agent ou un CI, où `Read-Host` ne peut pas répondre :
 
 ```powershell
-& "tools/new-game.ps1" -Name "Mon Jeu" -Destination "D:\Jeux" -Pitch "Un puzzle a deux boutons." -Build
+& "tools/new-game.ps1" `
+    -Name "Mon Jeu" `
+    -Destination "D:\Jeux" `
+    -Pitch "Le classique jeu de Snake" `
+    -ItchUser Drangoht `
+    -UnityPath "C:\Program Files\Unity\Hub\Editor\6000.5.6f1" `
+    -Build
 ```
+
+Cette commande crée `D:\Jeux\mon-jeu`, avec le namespace C# `MonJeu`, la page itch
+`drangoht.itch.io/mon-jeu`, la version d'Unity `6000.5.6f1` lue dans le chemin de l'éditeur — puis
+enchaîne sur le premier build sans rien demander, et laisse le terminal dans `D:\Jeux\mon-jeu`.
 
 Ce qui se passe :
 
@@ -38,11 +49,43 @@ Ce qui se passe :
    valide) et ne se manifeste que bien plus tard, sous la forme d'un chemin qui n'existe pas ;
 4. le chemin d'Unity est écrit dans `tools/local.settings.json` du projet (hors git) ;
 5. `git init` + premier commit ;
-6. le premier build est proposé — c'est lui qui importe le projet (~20 min).
+6. le premier build est proposé — c'est lui qui importe le projet (~20 min) ;
+7. **le terminal est placé dans le dossier du jeu** : tout ce qui suit (`tools/build.ps1`, les
+   tests, Claude Code) s'y passe, et non dans le gabarit.
 
-Paramètres : `-Slug`, `-Namespace`, `-ItchUser`, `-Company`, `-Pitch`, `-Commandes`, `-UnityPath`,
-`-UnityVersion`, `-Destination`, `-Build`, `-NoGit`. Le slug et le namespace sont déduits du nom,
-la version d'Unity du chemin de l'éditeur trouvé.
+### Les commutateurs
+
+Un seul est obligatoire : `-Name`. Tout le reste est déduit, mémorisé d'une exécution à l'autre, ou
+demandé.
+
+| Commutateur | Valeur | Défaut | Ce qu'il change |
+|---|---|---|---|
+| `-Name` | Nom affiché, espaces et accents permis | **demandé** | Menu de l'éditeur, titre de la fenêtre, docs, page itch. Fixe aussi `-Slug` et `-Namespace` |
+| `-Slug` | Minuscules, chiffres, tirets | déduit du nom (`Mon Jeu` → `mon-jeu`) | Nom du dossier créé **et** identifiant de la page itch. Rejeté s'il contient une majuscule, un espace ou un accent |
+| `-Namespace` | Identifiant C# PascalCase | déduit du slug (`mon-jeu` → `MonJeu`) | Namespace de tout le code, nom de l'exécutable, nom du dossier `Assets/WebGLTemplates/` |
+| `-Destination` | Dossier **parent**, créé s'il manque | mémorisé, sinon demandé | Où ranger le jeu. Le projet atterrit dans `<Destination>\<slug>` ; le script s'arrête si ce dossier existe déjà |
+| `-ItchUser` | Pseudo itch.io | mémorisé, sinon demandé | L'URL de publication `<pseudo>.itch.io/<slug>`, utilisée par `tools/release_itch.ps1` |
+| `-Company` | Nom d'éditeur | la valeur de `-ItchUser` | `PlayerSettings.companyName`, donc le chemin des sauvegardes (`%APPDATA%\..\<Company>\<jeu>`). Le changer plus tard **égare les sauvegardes existantes** |
+| `-Pitch` | Une phrase | `Un jeu.` | Le `<meta description>` de la page web, et l'accroche du `README.md`, du `CLAUDE.md`, du GDD et de la page itch du projet |
+| `-Commandes` | Une phrase | `Fleches pour se deplacer, Espace pour agir.` | La note affichée sous la barre de chargement du build web — ce que le joueur lit en attendant |
+| `-UnityPath` | L'`Unity.exe`, son dossier `Editor`, ou le dossier de version | détecté dans Unity Hub (2ᵈ disque compris), sinon demandé | L'éditeur utilisé pour les builds. Recopié dans `tools/local.settings.json` du projet, qui ne le redemandera jamais |
+| `-UnityVersion` | ex. `6000.5.6f1` | lu dans le chemin de l'éditeur trouvé | Ce qu'écrit `ProjectSettings/ProjectVersion.txt`. ⚠ Le forcer sur une version différente de l'éditeur installé fait proposer une migration à la première ouverture dans le Hub |
+| `-Build` | *switch* | absent : proposé en interactif, ignoré sinon | Enchaîne le premier build tout de suite (~20 min). Sans lui **et** sans terminal interactif, le projet reste non importé |
+| `-NoGit` | *switch* | absent : `git init` + premier commit | Laisse le dossier sans dépôt. Utile pour un essai jetable du gabarit |
+| `-NoCd` | *switch* | absent : la session est placée dans le projet créé | Reste où l'on est. ⚠ Sans lui, un `tools/build.ps1` tapé ensuite vise bien le jeu — c'est le but ; avec lui, penser au `cd`. Sans effet si le script tourne dans un processus séparé (`powershell -File`), qui meurt avec sa location |
+
+Les trois réponses réutilisables — `-Destination`, `-ItchUser`, `-UnityPath` — sont écrites dans
+`local.settings.json` à la racine du gabarit (non versionné) : au jeu suivant, `-Name` suffit.
+
+```powershell
+& "tools/new-game.ps1" -Name "Mon Deuxieme Jeu" -Build
+```
+
+Et pour éprouver le gabarit sans rien laisser derrière soi :
+
+```powershell
+& "tools/new-game.ps1" -Name "Test Gabarit" -Destination "$env:TEMP" -ItchUser essai -NoGit -NoCd
+```
 
 ### Rien de propre à une machine dans le dépôt
 
