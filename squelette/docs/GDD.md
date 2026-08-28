@@ -10,6 +10,10 @@ qui la justifie. Le code dit *comment* ; ce document dit **pourquoi**.
 > le raisonnement qui a mené à l'erreur a autant de valeur que la correction, et c'est ce qui évite
 > de refaire deux fois le même détour.
 
+⚠ **Ce fichier reste un sommaire : ~150 lignes, plafond.** Le détail d'un système va dans
+`docs/gdd/<systeme>.md` (§4). Il est relu par chaque agent avant chaque tâche : ce qu'on y ajoute,
+on le paie à toutes les tâches suivantes, y compris celles qui n'ont rien à voir.
+
 ## 1. Pitch
 
 __PITCH__
@@ -40,8 +44,16 @@ pour les raccourcis globaux.
 
 ## 4. Systèmes
 
-<!-- Un titre de niveau 3 par système. Pour chacun : ce qu'il fait, ses valeurs, et la mesure ou
-     l'observation qui les justifie. Les valeurs chiffrées vivent dans Assets/Scripts/Rules/. -->
+<!-- ⚠ CETTE SECTION EST UN INDEX, PAS UN CONTENU. Un système = un fichier docs/gdd/<systeme>.md,
+     une ligne ici. C'est la section qui gonfle le plus vite (elle a atteint 21 ko sur un Snake),
+     et tout ce qu'on y écrit est relu en entier par chaque agent qui touche à un AUTRE système.
+
+     Chaque fichier dit : ce que le système fait, ses valeurs, et la mesure ou l'observation qui
+     les justifie. Les valeurs chiffrées vivent dans Assets/Scripts/Rules/, pas ici. -->
+
+| Système | Fichier | En une phrase |
+|---|---|---|
+| <!-- Déplacement --> | <!-- [gdd/deplacement.md](gdd/deplacement.md) --> | <!-- ce qu'il fait --> |
 
 ## 5. Progression et difficulté
 

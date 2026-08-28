@@ -6,13 +6,19 @@ description: Carte/index de __GAME_NAME__ (Unity / C#). À invoquer AVANT toute 
 # Carte du projet — __GAME_NAME__
 
 Cette carte dit **où** se trouve chaque chose. Pour le reste : `docs/GDD.md` (**pourquoi** le jeu est
-réglé ainsi) · `docs/PITFALLS_UNITY.md` (**quels pièges** guettent) · `CLAUDE.md` (phase courante et
+réglé ainsi) · `docs/PITFALLS_UNITY.md` (index des **pièges**, ouvrir le domaine) · `CLAUDE.md` (phase courante et
 conventions).
 
 > **Maintenir cette carte à jour** : dès que tu ajoutes, supprimes ou renommes un système, un écran,
 > une donnée ou un outil, mets à jour la section concernée **dans le même commit**. Une carte périmée
 > est pire qu'absente — elle donne une réponse fausse avec autorité. En cas de doute, vérifie le
 > fichier avant de l'affirmer ; ne recopie pas aveuglément.
+
+> ⚠ **Plafond : ~150 lignes.** Cette carte est chargée en entier à chaque invocation, et elle grossit
+> avec le projet — mesurée à 12 ko sur un petit jeu, soit 3 000 jetons rechargés à chaque fois qu'on
+> cherche un fichier. Elle dit **où**, en une ligne par entrée. Le *comment* appartient au code, le
+> *pourquoi* au GDD. Au-delà du plafond, sortir les checklists dans un fichier voisin plutôt que
+> d'allonger.
 
 ## Arborescence
 
@@ -79,7 +85,7 @@ machine à l'autre. Tout passe par `environnement.ps1`.
 |---|---|
 | Phase courante, conventions | `CLAUDE.md` (chargé automatiquement) |
 | *Pourquoi* le jeu est réglé ainsi | `docs/GDD.md` — le remplir : skill `/rediger-le-gdd` |
-| Quels pièges guettent | `docs/PITFALLS_UNITY.md` |
+| Quels pièges guettent | `docs/pitfalls/<domaine>.md` (index : `docs/PITFALLS_UNITY.md`) |
 | Ce qui a été testé / mesuré | `docs/TEST_REPORT.md` |
 | Ce qui est réellement sorti | `docs/DEVLOG.md` |
 | Publier | `docs/RELEASE.md` + skill `/publier-itch` |

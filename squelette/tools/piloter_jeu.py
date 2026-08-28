@@ -16,6 +16,9 @@ Usage
     py tools/piloter_jeu.py --maintenir droite --duree 1.2 --capture docs/deplacement.png
     py tools/piloter_jeu.py --fermer
 
+Les captures sont réduites à 960 px de large (voir LARGEUR_CAPTURE) : elles sont lues par un agent,
+et une image se paie proportionnellement à sa surface. `--pleine-resolution` pour un détail fin.
+
 Les pièges déjà payés (ne pas les redécouvrir)
 ----------------------------------------------
 1. **Le focus est LE point de blocage.** `SetForegroundWindow` seul échoue depuis un shell non
@@ -194,7 +197,14 @@ def amorcer() -> None:
 
 # --- Capture -----------------------------------------------------------------------
 
-def capturer(hwnd: int, destination: pathlib.Path) -> None:
+# Largeur d'enregistrement des captures. Une capture est LUE par un agent, et une image se paie
+# proportionnellement à sa surface : 1280x720 vaut ~1200 jetons, 960x540 ~700, pour la même
+# information (un menu s'affiche, le serpent est au bon endroit, la barre de vie est vide).
+# Passer --pleine-resolution quand on doit juger d'un détail au pixel (crénelage, texte minuscule).
+LARGEUR_CAPTURE = 960
+
+
+def capturer(hwnd: int, destination: pathlib.Path, largeur: int = LARGEUR_CAPTURE) -> None:
     """
     Capture la FENÊTRE du jeu, jamais l'écran entier.
 
@@ -202,7 +212,7 @@ def capturer(hwnd: int, destination: pathlib.Path) -> None:
     des mesures de pixels faussées par ce qui déborde du jeu.
     """
     try:
-        from PIL import ImageGrab
+        from PIL import Image, ImageGrab
     except ImportError:
         raise SystemExit(
             "Pillow est requis pour la capture : py -m pip install pillow"
@@ -214,9 +224,19 @@ def capturer(hwnd: int, destination: pathlib.Path) -> None:
 
     time.sleep(0.2)
     image = ImageGrab.grab(bbox=rectangle(hwnd), all_screens=True)
+    brute = (image.width, image.height)
+
+    if largeur and image.width > largeur:
+        hauteur = round(image.height * largeur / image.width)
+        image = image.resize((largeur, hauteur), Image.LANCZOS)
+
     destination.parent.mkdir(parents=True, exist_ok=True)
     image.save(destination)
-    print(f"Capture : {destination} ({image.width} x {image.height})")
+    if (image.width, image.height) != brute:
+        print(f"Capture : {destination} ({image.width} x {image.height}, "
+              f"reduite depuis {brute[0]} x {brute[1]})")
+    else:
+        print(f"Capture : {destination} ({image.width} x {image.height})")
 
 
 # --- Cycle de vie ------------------------------------------------------------------
@@ -263,6 +283,9 @@ def main() -> int:
     parseur.add_argument("--maintenir", default="", help="une touche maintenue")
     parseur.add_argument("--duree", type=float, default=0.9, help="duree du maintien, en secondes")
     parseur.add_argument("--capture", default="", help="chemin du PNG a ecrire")
+    parseur.add_argument("--pleine-resolution", action="store_true", dest="pleine_resolution",
+                         help="ne pas reduire la capture (couteux a lire : ne le demander que pour "
+                              "juger d'un detail au pixel)")
     parseur.add_argument("--fermer", action="store_true", help="ferme la fenetre du jeu")
     args = parseur.parse_args()
 
@@ -296,7 +319,8 @@ def main() -> int:
         _envoyer(args.maintenir, True)
 
     if args.capture:
-        capturer(hwnd, pathlib.Path(args.capture))
+        capturer(hwnd, pathlib.Path(args.capture),
+                 largeur=0 if args.pleine_resolution else LARGEUR_CAPTURE)
 
     return 0
 

@@ -40,7 +40,24 @@ dot-source — une seule implémentation, pas deux qui divergent.
    d'essai, qu'on supprime juste après, et le shell se retrouve avec un cwd qui n'existe plus.
    Supprimer le dossier d'essai ensuite.
 
-## Ajouter un piège à `docs/PITFALLS_UNITY.md`
+## Le coût en contexte est un critère de conception
+
+Tout ce que le squelette fait relire **à chaque tâche** — `CLAUDE.md`, le GDD, `/carte-projet`, les
+pièges — est payé autant de fois qu'il y a de tâches, et une fois de plus par **chaque agent
+délégué**, qui démarre à froid. Mesuré sur un vrai projet issu du gabarit (un Snake, un jour et demi
+d'usage) : GDD 33 ko, pièges 26 ko, carte 12 ko — un sous-agent `developpeur` avalait ≈20 000 jetons
+avant sa première action.
+
+D'où deux règles, à faire respecter dans le squelette comme ici :
+
+1. **Un document relu à chaque tâche a un plafond** (`CLAUDE.md` 80 lignes ; GDD et carte 150 ; un
+   fichier de pièges ou de système 150). Atteint, on **scinde** et on laisse un **index** : une
+   ligne par entrée, avec de quoi choisir quoi ouvrir. Le gain est structurel, pas cosmétique — le
+   monolithe des pièges valait 4 700 jetons, un domaine en vaut 800.
+2. **Ajouter au squelette un document que tout le monde relit, c'est ajouter un coût récurrent.**
+   Le mettre derrière un index, ou dans un skill invoqué à la demande.
+
+## Ajouter un piège à `docs/pitfalls/<domaine>.md`
 
 C'est le contenu le plus précieux du dépôt, et il a une règle d'admission stricte :
 
@@ -53,6 +70,9 @@ access out of bounds` de trois cents lignes » est reconnaissable, « attention 
 pas.
 
 Marquer **[hérité]** ce qui vient d'un projet antérieur et n'a pas été revérifié depuis.
+
+L'entrée va dans le fichier de son domaine ; `docs/PITFALLS_UNITY.md` n'est plus qu'un index à tenir
+à jour. Aucun domaine ne dépasse ~150 lignes : au-delà, il se scinde à son tour.
 
 ## Faire évoluer un agent
 

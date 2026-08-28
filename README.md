@@ -7,7 +7,7 @@ build en ligne de commande, la publication itch.io avec ses garde-fous, l'outill
 en jeu, et une équipe d'agents Claude Code déjà instruite des pièges. Le tout distillé de deux
 projets publiés, **Chimera Protocol** et **Smily Volley**.
 
-> **Le vrai contenu de ce dépôt, c'est `docs/PITFALLS_UNITY.md`.** Chaque entrée correspond à un
+> **Le vrai contenu de ce dépôt, c'est `docs/pitfalls/`.** Chaque entrée correspond à un
 > défaut qui n'a levé **ni erreur de compilation, ni exception, ni avertissement** — seulement un
 > jeu qui se comporte mal. C'est la catégorie de bug qui coûte des heures et qu'on ne redécouvre
 > jamais avec plaisir.
@@ -130,7 +130,8 @@ mon-jeu/
 ├── .gitattributes          LF partout + fusion YAML Unity + règles LFS pour les gros assets
 ├── Packages/manifest.json  URP + Input System + uGUI
 ├── ProjectSettings/        Version d'Unity, et Burst éteint côté Windows — voir son LISEZ-MOI
-├── docs/                   GDD · PITFALLS_UNITY · RELEASE · DEVLOG · TEST_REPORT · ITCH_STORE_PAGE
+├── docs/                   GDD (sommaire + gdd/) · pitfalls/ (12 domaines + index) · RELEASE
+│                           DEVLOG · TEST_REPORT · ITCH_STORE_PAGE
 ├── tests/                  xUnit sur Rules/ — aucun moteur requis
 └── tools/
     ├── build.ps1           Construire (Windows/web), lancer, capturer — LE point d'entrée
@@ -223,7 +224,7 @@ Les deux hooks déduisent la racine du projet de leur propre emplacement : rien 
 Ce dépôt n'a de valeur que s'il vieillit bien. Deux règles :
 
 1. **Quand un projet enseigne quelque chose de généralisable, le remonter ici** — un piège dans
-   `docs/PITFALLS_UNITY.md`, une consigne dans l'agent concerné, un garde-fou dans un script. C'est
+   `docs/pitfalls/<domaine>.md`, une consigne dans l'agent concerné, un garde-fou dans un script. C'est
    moins coûteux que de le redécouvrir sur le projet suivant.
 2. **Quand un projet donne tort au gabarit, le corriger ici aussi.** Une consigne périmée transmise à
    chaque nouveau projet est pire qu'une consigne absente : elle est fausse, et elle a l'autorité du
