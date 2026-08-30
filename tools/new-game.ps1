@@ -1,51 +1,52 @@
 <#
 .SYNOPSIS
-    Instancie un nouveau projet Unity a partir du squelette.
+    Instantiates a new Unity project from the skeleton.
 
 .DESCRIPTION
-    Copie `squelette/` vers la destination, remplace les jetons `__XXX__` dans les fichiers texte,
-    renomme les dossiers qui en portent, initialise git, fait le premier commit -- et, si on le lui
-    demande, enchaine sur le premier build Unity, qui importe le projet.
+    Copies `skeleton/` to the destination, replaces the `__XXX__` tokens in the text files, renames
+    the folders that carry them, initialises git, makes the first commit -- and, if asked to, goes
+    on to the first Unity build, which imports the project.
 
-    Rien n'est devine sur la machine : ni ou ranger les jeux, ni ou est installe Unity. Ce qui est
-    donne une fois est memorise dans `local.settings.json` (a cote de ce script, non versionne), et
-    les fois suivantes il n'y a plus rien a saisir.
+    Nothing is guessed about the machine: neither where to keep the games, nor where Unity is
+    installed. What is given once is remembered in `local.settings.json` (next to this script, not
+    versioned), and the following times there is nothing left to type.
 
-    Lance sans argument dans un terminal, le script demande ce qui lui manque.
+    Run with no argument in a terminal, the script asks for what it is missing.
 
 .PARAMETER Name
-    Nom affiche du jeu (ex. « Smily Volley »). Sert au menu de l'editeur, au titre de la fenetre et
-    a la page itch.
+    Display name of the game (e.g. "Smily Volley"). Used by the editor menu, the window title and
+    the itch page.
 
 .PARAMETER Slug
-    Identifiant itch et nom de dossier (ex. `smily-volley`). Deduit du nom si absent.
+    itch identifier and folder name (e.g. `smily-volley`). Derived from the name if absent.
 
 .PARAMETER Namespace
-    Namespace C# et nom de l'executable, en PascalCase (ex. `SmilyVolley`). Deduit du nom si absent.
-    C'est aussi le nom du gabarit WebGL : le dossier `Assets/WebGLTemplates/` est renomme avec.
+    C# namespace and executable name, in PascalCase (e.g. `SmilyVolley`). Derived from the name if
+    absent. It is also the name of the WebGL template: the `Assets/WebGLTemplates/` folder is
+    renamed with it.
 
 .PARAMETER Destination
-    Dossier PARENT du nouveau projet -- celui ou l'on range ses jeux. Demande a la premiere
-    utilisation, puis memorise. Aucun defaut : ce chemin appartient a la machine, pas au gabarit.
+    PARENT folder of the new project -- the one where you keep your games. Asked for on first use,
+    then remembered. No default: that path belongs to the machine, not to the template.
 
 .PARAMETER UnityPath
-    Chemin d'Unity.exe (l'exe, son dossier `Editor`, ou le dossier de version). Detecte
-    automatiquement dans les installations d'Unity Hub ; demande sinon. Il est recopie dans le
-    projet cree, qui n'aura donc jamais a le redemander.
+    Path to Unity.exe (the exe, its `Editor` folder, or the version folder). Detected automatically
+    in the Unity Hub installations; asked for otherwise. It is copied into the created project,
+    which will therefore never have to ask for it again.
 
 .PARAMETER Build
-    Enchaine sur le premier build apres la creation. Il importe tout le projet (~20 min) et rend
-    l'etape « ouvrir une fois dans Unity Hub » inutile.
+    Goes on to the first build after creation. It imports the whole project (~20 min) and makes the
+    "open once in Unity Hub" step unnecessary.
 
 .PARAMETER NoCd
-    Reste dans le dossier courant. Par defaut le script place la session dans le projet cree : la
-    suite du travail (build, tests, Claude Code) s'y passe entierement, et un `tools/build.ps1`
-    lance depuis le gabarit construirait le mauvais projet -- ou rien du tout.
+    Stays in the current folder. By default the script puts the session inside the created project:
+    the rest of the work (build, tests, Claude Code) happens entirely there, and a
+    `tools/build.ps1` launched from the template would build the wrong project -- or nothing at all.
 
 .EXAMPLE
     & "tools/new-game.ps1"
-    & "tools/new-game.ps1" -Name "Mon Jeu" -Pitch "Un puzzle a deux boutons." -Build
-    & "tools/new-game.ps1" -Name "Mon Jeu" -Destination "D:\Jeux" -UnityPath "D:\Unity\6000.5.6f1"
+    & "tools/new-game.ps1" -Name "My Game" -Pitch "A two-button puzzle." -Build
+    & "tools/new-game.ps1" -Name "My Game" -Destination "D:\Games" -UnityPath "D:\Unity\6000.5.6f1"
 #>
 
 param(
@@ -54,8 +55,8 @@ param(
     [string]$Namespace = "",
     [string]$ItchUser = "",
     [string]$Company = "",
-    [string]$Pitch = "Un jeu.",
-    [string]$Commandes = "Fleches pour se deplacer, Espace pour agir.",
+    [string]$Pitch = "A game.",
+    [string]$Controls = "Arrow keys to move, Space to act.",
     [string]$UnityPath = "",
     [string]$UnityVersion = "",
     [string]$Destination = "",
@@ -67,72 +68,72 @@ param(
 $ErrorActionPreference = "Stop"
 
 $TemplateRoot = Split-Path -Parent $PSScriptRoot
-$Squelette    = Join-Path $TemplateRoot "squelette"
+$Skeleton     = Join-Path $TemplateRoot "skeleton"
 
-function Fail($msg) { Write-Host "ERREUR : $msg" -ForegroundColor Red; exit 1 }
+function Fail($msg) { Write-Host "ERROR: $msg" -ForegroundColor Red; exit 1 }
 
-if (-not (Test-Path $Squelette)) { Fail "Squelette introuvable : $Squelette" }
+if (-not (Test-Path $Skeleton)) { Fail "Skeleton not found: $Skeleton" }
 
-# Les fonctions de detection d'Unity vivent dans le squelette : le gabarit s'en sert lui aussi
-# plutot que d'en tenir une seconde copie, qui divergerait.
-. (Join-Path $Squelette "tools\environnement.ps1")
+# The Unity detection functions live in the skeleton: the template uses them too rather than
+# keeping a second copy, which would drift.
+. (Join-Path $Skeleton "tools\environment.ps1")
 
-# ⚠ A rediriger IMMEDIATEMENT apres le dot-source : sans cela, les preferences s'ecriraient dans
-# `squelette/tools/local.settings.json`, donc dans le gabarit -- et seraient recopiees dans chaque
-# projet cree ensuite.
-$script:FichierReglages = Join-Path $TemplateRoot "local.settings.json"
-$script:RacineProjet    = $TemplateRoot
+# WARNING: to be redirected IMMEDIATELY after the dot-source: without this, the preferences would be
+# written to `skeleton/tools/local.settings.json`, hence into the template -- and would be copied
+# into every project created afterwards.
+$script:SettingsFile = Join-Path $TemplateRoot "local.settings.json"
+$script:ProjectRoot  = $TemplateRoot
 
-$prefs = Get-ReglagesLocaux
+$prefs = Get-LocalSettings
 
-# --- Saisie ---------------------------------------------------------------------------
-# ⚠ Read-Host ne peut pas repondre quand l'entree standard n'est pas une console : lance par un
-# agent, un CI ou une tache planifiee, il rend "" -- ou attend indefiniment. On tranche une fois
-# pour toutes ici plutot que de risquer un script bloque au milieu d'une creation de projet.
-$script:Interactif = $false
-try { $script:Interactif = ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected) } catch { }
+# --- Input ----------------------------------------------------------------------------
+# WARNING: Read-Host cannot answer when standard input is not a console: launched by an agent, a CI
+# or a scheduled task, it returns "" -- or waits forever. We settle it once and for all here rather
+# than risk a script stuck in the middle of a project creation.
+$script:Interactive = $false
+try { $script:Interactive = ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected) } catch { }
 
-function Demander {
-    param([string]$Question, [string]$Defaut = "", [string]$Parametre = "")
+function Ask {
+    param([string]$Question, [string]$Default = "", [string]$Parameter = "")
 
-    if ($script:Interactif) {
-        $invite = if ($Defaut) { "$Question [$Defaut]" } else { $Question }
-        $reponse = ""
-        try { $reponse = (Read-Host $invite) } catch { $reponse = "" }
-        if ($reponse) { return $reponse.Trim() }
+    if ($script:Interactive) {
+        $prompt = if ($Default) { "$Question [$Default]" } else { $Question }
+        $answer = ""
+        try { $answer = (Read-Host $prompt) } catch { $answer = "" }
+        if ($answer) { return $answer.Trim() }
     }
-    if ($Defaut) { return $Defaut }
-    if ($Parametre) {
-        Fail "Il manque -$Parametre (rien a saisir : ce terminal n'a pas d'entree interactive)."
+    if ($Default) { return $Default }
+    if ($Parameter) {
+        Fail "Missing -$Parameter (nothing to type: this terminal has no interactive input)."
     }
     return ""
 }
 
-function Confirmer {
+function Confirm-Choice {
     param([string]$Question)
-    if (-not $script:Interactif) { return $false }
-    $reponse = ""
-    try { $reponse = (Read-Host "$Question [O/n]") } catch { return $false }
-    return ($reponse -eq "" -or $reponse -match '^[oOyY]')
+    if (-not $script:Interactive) { return $false }
+    $answer = ""
+    try { $answer = (Read-Host "$Question [Y/n]") } catch { return $false }
+    return ($answer -eq "" -or $answer -match '^[yYoO]')
 }
 
-Write-Host "Nouveau jeu Unity" -ForegroundColor Cyan
+Write-Host "New Unity game" -ForegroundColor Cyan
 Write-Host ""
 
-if (-not $Name) { $Name = Demander "Nom du jeu" -Parametre "Name" }
+if (-not $Name) { $Name = Ask "Game name" -Parameter "Name" }
 
-# --- Valeurs deduites -----------------------------------------------------------------
-# Le slug sert d'identifiant itch ET de nom de dossier : il ne tolere ni accent, ni espace, ni
-# majuscule. On le derive plutot que de le demander, mais on le laisse surchargeable.
+# --- Derived values -------------------------------------------------------------------
+# The slug serves as the itch identifier AND as the folder name: it tolerates neither accents, nor
+# spaces, nor capitals. We derive it rather than asking for it, but leave it overridable.
 if (-not $Slug) {
-    # Decomposition Unicode puis retrait des diacritiques : « Épée » -> « epee ». Un simple
-    # -replace laisserait tomber les lettres accentuees au lieu de les translitterer.
-    $decompose = $Name.Normalize([Text.NormalizationForm]::FormD)
-    $sansAccent = -join ($decompose.ToCharArray() | Where-Object {
+    # Unicode decomposition then removal of the diacritics: "Epee" from "E'pe'e". A plain -replace
+    # would drop the accented letters instead of transliterating them.
+    $decomposed = $Name.Normalize([Text.NormalizationForm]::FormD)
+    $stripped = -join ($decomposed.ToCharArray() | Where-Object {
         [Globalization.CharUnicodeInfo]::GetUnicodeCategory($_) -ne
             [Globalization.UnicodeCategory]::NonSpacingMark
     })
-    $Slug = ($sansAccent.ToLower() -replace '[^a-z0-9]+', '-').Trim('-')
+    $Slug = ($stripped.ToLower() -replace '[^a-z0-9]+', '-').Trim('-')
 }
 if (-not $Namespace) {
     $Namespace = -join (($Slug -split '-') | ForEach-Object {
@@ -141,225 +142,227 @@ if (-not $Namespace) {
 }
 
 if ($Slug -notmatch '^[a-z0-9][a-z0-9-]*$') {
-    Fail "Slug invalide : '$Slug'. Minuscules, chiffres et tirets uniquement (le donner via -Slug)."
+    Fail "Invalid slug: '$Slug'. Lowercase letters, digits and hyphens only (supply it with -Slug)."
 }
 if ($Namespace -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
-    Fail "Namespace invalide : '$Namespace'. Identifiant C# attendu (le donner via -Namespace)."
+    Fail "Invalid namespace: '$Namespace'. A C# identifier is expected (supply it with -Namespace)."
 }
 
-# --- Ou ranger le projet ---------------------------------------------------------------
+# --- Where to keep the project ---------------------------------------------------------
 if (-not $Destination) { $Destination = $prefs.gamesRoot }
 if (-not $Destination) {
-    Write-Host "Ou ranger les projets de jeu ? (dossier parent, il sera cree si besoin)" -ForegroundColor DarkGray
-    $Destination = Demander "Dossier des jeux" -Parametre "Destination"
+    Write-Host "Where should the game projects go? (parent folder, it will be created if needed)" -ForegroundColor DarkGray
+    $Destination = Ask "Games folder" -Parameter "Destination"
 }
 $Destination = $Destination.Trim().Trim('"')
 if (-not (Test-Path -LiteralPath $Destination)) {
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-    Write-Host "Dossier cree : $Destination" -ForegroundColor DarkGray
+    Write-Host "Folder created: $Destination" -ForegroundColor DarkGray
 }
 $Destination = (Resolve-Path -LiteralPath $Destination).Path
 
-$Cible = Join-Path $Destination $Slug
-if (Test-Path $Cible) { Fail "Le dossier existe deja : $Cible" }
+$Target = Join-Path $Destination $Slug
+if (Test-Path $Target) { Fail "The folder already exists: $Target" }
 
-# --- Ou est Unity ----------------------------------------------------------------------
-# Detecte, jamais devine : un chemin en dur produit chez le suivant « Unity.exe : Le terme
-# «Unity.exe» n'est pas reconnu comme nom d'applet de commande ».
+# --- Where Unity is --------------------------------------------------------------------
+# Detected, never guessed: a hard-coded path produces, on the next machine, "Unity.exe : The term
+# 'Unity.exe' is not recognized as the name of a cmdlet".
 if (-not $UnityPath) { $UnityPath = $prefs.unityPath }
-$unity = Resolve-UnityPath -UnityPath $UnityPath -Version $UnityVersion -Silencieux
+$unity = Resolve-UnityPath -UnityPath $UnityPath -Version $UnityVersion -Quiet
 if (-not $unity) {
-    Write-Host "Unity introuvable dans les emplacements d'Unity Hub :" -ForegroundColor Yellow
-    Get-RacinesUnity | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
-    Write-Host "Unity Hub > Installs > roue dentee > « Show in Explorer » donne le dossier exact." -ForegroundColor DarkGray
-    $saisi = Demander "Chemin d'Unity.exe (vide = creer le projet sans Unity)"
-    if ($saisi) {
-        $unity = Expand-CheminUnity $saisi
-        if (-not $unity) { Fail "Aucun Unity.exe a cet endroit : $saisi" }
+    Write-Host "Unity not found in the Unity Hub locations:" -ForegroundColor Yellow
+    Get-UnityRoots | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+    Write-Host "Unity Hub > Installs > gear icon > 'Show in Explorer' gives the exact folder." -ForegroundColor DarkGray
+    $typed = Ask "Path to Unity.exe (empty = create the project without Unity)"
+    if ($typed) {
+        $unity = Expand-UnityPath $typed
+        if (-not $unity) { Fail "No Unity.exe at that location: $typed" }
     }
 }
 
-# La version du projet suit l'editeur reellement installe : ProjectVersion.txt et le chemin de
-# l'editeur doivent designer le MEME Unity, sinon le Hub proposera une migration au premier clic.
+# The project version follows the editor actually installed: ProjectVersion.txt and the editor path
+# must designate the SAME Unity, otherwise the Hub will offer a migration at the first click.
 if (-not $UnityVersion -and $unity) {
-    $dossierVersion = Split-Path -Parent (Split-Path -Parent $unity)
-    $UnityVersion = Split-Path -Leaf $dossierVersion
+    $versionFolder = Split-Path -Parent (Split-Path -Parent $unity)
+    $UnityVersion = Split-Path -Leaf $versionFolder
 }
 if (-not $UnityVersion) {
-    $UnityVersion = Demander "Version d'Unity a inscrire dans le projet" "6000.5.6f1"
+    $UnityVersion = Ask "Unity version to write into the project" "6000.5.6f1"
 }
 
-# --- Identite itch ----------------------------------------------------------------------
+# --- itch identity ----------------------------------------------------------------------
 if (-not $ItchUser) { $ItchUser = $prefs.itchUser }
-if (-not $ItchUser) { $ItchUser = Demander "Pseudo itch.io (l'URL sera <pseudo>.itch.io/$Slug)" -Parametre "ItchUser" }
+if (-not $ItchUser) { $ItchUser = Ask "itch.io username (the URL will be <user>.itch.io/$Slug)" -Parameter "ItchUser" }
 if (-not $Company)  { $Company = $ItchUser }
 
-$jetons = [ordered]@{
+$tokens = [ordered]@{
     '__GAME_NAME__'     = $Name
     '__GAME_SLUG__'     = $Slug
     '__NAMESPACE__'     = $Namespace
     '__ITCH_USER__'     = $ItchUser
     '__COMPANY__'       = $Company
     '__PITCH__'         = $Pitch
-    '__COMMANDES__'     = $Commandes
+    '__CONTROLS__'      = $Controls
     '__UNITY_VERSION__' = $UnityVersion
     '__DATE__'          = (Get-Date -Format "yyyy-MM-dd")
 }
 
 Write-Host ""
-$jetons.GetEnumerator() | ForEach-Object {
+$tokens.GetEnumerator() | ForEach-Object {
     Write-Host ("  {0,-20} {1}" -f $_.Key, $_.Value) -ForegroundColor DarkGray
 }
 if ($unity) { Write-Host ("  {0,-20} {1}" -f "Unity", $unity) -ForegroundColor DarkGray }
-Write-Host "  -> $Cible" -ForegroundColor Cyan
+Write-Host "  -> $Target" -ForegroundColor Cyan
 
-# --- 1. Copie ------------------------------------------------------------------------
-Copy-Item $Squelette $Cible -Recurse -Force
+# --- 1. Copy -------------------------------------------------------------------------
+Copy-Item $Skeleton $Target -Recurse -Force
 
-# --- 2. Renommage des dossiers et fichiers porteurs de jetons ------------------------
-# Du plus profond vers le moins profond : renommer un parent d'abord invaliderait les chemins
-# collectes pour ses enfants.
-Get-ChildItem $Cible -Recurse -Force |
+# --- 2. Renaming of the folders and files carrying tokens -----------------------------
+# From the deepest to the shallowest: renaming a parent first would invalidate the paths collected
+# for its children.
+Get-ChildItem $Target -Recurse -Force |
     Sort-Object { $_.FullName.Length } -Descending |
     ForEach-Object {
-        $nouveau = $_.Name
-        foreach ($j in $jetons.GetEnumerator()) {
-            $nouveau = $nouveau.Replace($j.Key, $j.Value)
+        $newName = $_.Name
+        foreach ($t in $tokens.GetEnumerator()) {
+            $newName = $newName.Replace($t.Key, $t.Value)
         }
-        if ($nouveau -ne $_.Name) {
-            Rename-Item -LiteralPath $_.FullName -NewName $nouveau
+        if ($newName -ne $_.Name) {
+            Rename-Item -LiteralPath $_.FullName -NewName $newName
         }
     }
 
-# --- 3. Substitution dans les fichiers texte -----------------------------------------
-# ⚠ Uniquement les extensions texte connues : reecrire un binaire en UTF-8 le corrompt sans rien
-# signaler. Les .asset et .meta d'Unity sont du YAML, donc du texte -- ils sont inclus a dessein.
+# --- 3. Substitution in the text files ------------------------------------------------
+# WARNING: only the known text extensions: rewriting a binary in UTF-8 corrupts it without
+# reporting anything. Unity's .asset and .meta files are YAML, hence text -- they are included on
+# purpose.
 $extensions = @('.cs', '.md', '.json', '.ps1', '.py', '.html', '.yml', '.yaml',
                 '.txt', '.csproj', '.asset', '.meta', '.css', '.js',
                 '.gitignore', '.gitattributes')
 
-$fichiers = Get-ChildItem $Cible -Recurse -File -Force | Where-Object {
+$files = Get-ChildItem $Target -Recurse -File -Force | Where-Object {
     $extensions -contains $_.Extension
 }
 
-$touches = 0
-foreach ($fichier in $fichiers) {
-    $contenu = Get-Content -LiteralPath $fichier.FullName -Raw -Encoding UTF8
-    if ($null -eq $contenu) { continue }
+$touched = 0
+foreach ($file in $files) {
+    $content = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
+    if ($null -eq $content) { continue }
 
-    $avant = $contenu
-    foreach ($j in $jetons.GetEnumerator()) {
-        $contenu = $contenu.Replace($j.Key, $j.Value)
+    $before = $content
+    foreach ($t in $tokens.GetEnumerator()) {
+        $content = $content.Replace($t.Key, $t.Value)
     }
 
-    if ($contenu -ne $avant) {
-        # ⚠ UTF8 SANS BOM : Unity lit les .cs et les .asset sans broncher avec un BOM, mais git
-        # affiche alors un diff parasite sur la premiere ligne, et certains outils Python plantent.
-        [IO.File]::WriteAllText($fichier.FullName, $contenu, [Text.UTF8Encoding]::new($false))
-        $touches++
+    if ($content -ne $before) {
+        # WARNING: UTF8 WITHOUT BOM: Unity reads .cs and .asset files with a BOM without
+        # complaining, but git then shows a spurious diff on the first line, and some Python tools
+        # crash.
+        [IO.File]::WriteAllText($file.FullName, $content, [Text.UTF8Encoding]::new($false))
+        $touched++
     }
 }
-Write-Host "$touches fichier(s) personnalise(s)." -ForegroundColor DarkGray
+Write-Host "$touched file(s) customised." -ForegroundColor DarkGray
 
-# --- 4. Verification : aucun jeton ne doit survivre ----------------------------------
-# Un jeton oublie ne casse rien tout de suite : il compile (c'est un identifiant valide) et se
-# manifeste bien plus tard, sous la forme d'un chemin qui n'existe pas.
-$restants = Get-ChildItem $Cible -Recurse -File -Force |
-            Where-Object { $extensions -contains $_.Extension } |
-            Select-String -Pattern '__(GAME_NAME|GAME_SLUG|NAMESPACE|ITCH_USER|COMPANY|PITCH|COMMANDES|UNITY_VERSION|DATE)__' -List
-if ($restants) {
-    Write-Host "AVERTISSEMENT : des jetons subsistent dans :" -ForegroundColor Yellow
-    $restants | ForEach-Object { Write-Host "  $($_.Path)" -ForegroundColor Yellow }
+# --- 4. Check: no token must survive --------------------------------------------------
+# A forgotten token breaks nothing straight away: it compiles (it is a valid identifier) and shows
+# up much later, in the form of a path that does not exist.
+$remaining = Get-ChildItem $Target -Recurse -File -Force |
+             Where-Object { $extensions -contains $_.Extension } |
+             Select-String -Pattern '__(GAME_NAME|GAME_SLUG|NAMESPACE|ITCH_USER|COMPANY|PITCH|CONTROLS|UNITY_VERSION|DATE)__' -List
+if ($remaining) {
+    Write-Host "WARNING: tokens remain in:" -ForegroundColor Yellow
+    $remaining | ForEach-Object { Write-Host "  $($_.Path)" -ForegroundColor Yellow }
 }
 
-# --- 5. Chemins locaux du projet cree -------------------------------------------------
-# Ecrits dans le projet, hors de git : le projet sait ou est Unity des son premier build, et rien
-# de propre a cette machine ne part dans l'historique.
+# --- 5. Local paths of the created project ---------------------------------------------
+# Written into the project, out of git: the project knows where Unity is from its first build, and
+# nothing specific to this machine goes into the history.
 if ($unity) {
-    $reglagesProjet = @{ unityPath = $unity }
+    $projectSettings = @{ unityPath = $unity }
     $python = Resolve-PythonCommand
-    if ($python) { $reglagesProjet["python"] = $python }
-    $texte = ($reglagesProjet | ConvertTo-Json)
-    [IO.File]::WriteAllText((Join-Path $Cible "tools\local.settings.json"), $texte, [Text.UTF8Encoding]::new($false))
+    if ($python) { $projectSettings["python"] = $python }
+    $text = ($projectSettings | ConvertTo-Json)
+    [IO.File]::WriteAllText((Join-Path $Target "tools\local.settings.json"), $text, [Text.UTF8Encoding]::new($false))
 }
 
 # --- 6. Git ---------------------------------------------------------------------------
 if (-not $NoGit) {
-    Push-Location $Cible
-    # ⚠ Ne PAS tester $? apres git : il ecrit sa progression sur stderr meme quand tout va bien.
+    Push-Location $Target
+    # WARNING: do NOT test $? after git: it writes its progress on stderr even when all is well.
     git init -b main | Out-Null
     git add -A
     git commit -m @"
-Pose les fondations de $Name
+Lay the foundations of $Name
 
-Genere depuis unity-game-template : squelette Unity (URP 2D, Input System),
-scene construite par code, logique pure testee hors moteur, chaine de
-publication itch.io, et l'equipe d'agents Claude Code avec ses garde-fous.
+Generated from unity-game-template: Unity skeleton (URP 2D, Input System),
+scene built in code, pure logic tested outside the engine, itch.io publishing
+chain, and the Claude Code agent team with its safeguards.
 "@ | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "AVERTISSEMENT : le premier commit a echoue (git est-il configure ?)." -ForegroundColor Yellow
+        Write-Host "WARNING: the first commit failed (is git configured?)." -ForegroundColor Yellow
     }
     Pop-Location
 }
 
-# --- 7. Memorisation des reponses -----------------------------------------------------
-Set-ReglageLocal -Nom "gamesRoot" -Valeur $Destination
-Set-ReglageLocal -Nom "itchUser"  -Valeur $ItchUser
-if ($unity) { Set-ReglageLocal -Nom "unityPath" -Valeur $unity }
+# --- 7. Remembering the answers --------------------------------------------------------
+Set-LocalSetting -Name "gamesRoot" -Value $Destination
+Set-LocalSetting -Name "itchUser"  -Value $ItchUser
+if ($unity) { Set-LocalSetting -Name "unityPath" -Value $unity }
 
 Write-Host ""
-Write-Host "Projet cree : $Cible" -ForegroundColor Green
+Write-Host "Project created: $Target" -ForegroundColor Green
 
-# --- 8. Premier build -----------------------------------------------------------------
-# C'est lui qui importe le projet et genere Library/ + ProjectSettings/ : il n'y a rien a ouvrir
-# dans Unity Hub, contrairement a ce que suppose la plupart des tutoriels.
-$construire = $false
+# --- 8. First build --------------------------------------------------------------------
+# It is what imports the project and generates Library/ + ProjectSettings/: there is nothing to open
+# in Unity Hub, contrary to what most tutorials assume.
+$doBuild = $false
 if ($unity) {
     if ($Build) {
-        $construire = $true
-    } elseif ($script:Interactif) {
+        $doBuild = $true
+    } elseif ($script:Interactive) {
         Write-Host ""
-        Write-Host "Le premier build importe tout le projet : compter une vingtaine de minutes." -ForegroundColor DarkGray
-        $construire = Confirmer "Le lancer maintenant ?"
+        Write-Host "The first build imports the whole project: reckon on about twenty minutes." -ForegroundColor DarkGray
+        $doBuild = Confirm-Choice "Run it now?"
     }
 }
 
-if ($construire) {
-    & (Join-Path $Cible "tools\build.ps1") -Lancer -Capture "docs\premier-lancement.png"
+if ($doBuild) {
+    & (Join-Path $Target "tools\build.ps1") -Run -Capture "docs\first-launch.png"
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "Le premier build a echoue - voir Logs\build-windows.log dans le projet." -ForegroundColor Yellow
+        Write-Host "The first build failed - see Logs\build-windows.log in the project." -ForegroundColor Yellow
     }
     Write-Host ""
-    Write-Host "Ensuite :" -ForegroundColor Green
-    Write-Host "  1. Remplir docs/GDD.md : dans Claude Code, /rediger-le-gdd. Puis la phase 0 de CLAUDE.md."
-    Write-Host "  2. Creer la page itch : https://$ItchUser.itch.io/$Slug"
+    Write-Host "Next:" -ForegroundColor Green
+    Write-Host "  1. Fill in docs/GDD.md: in Claude Code, /write-the-gdd. Then phase 0 of CLAUDE.md."
+    Write-Host "  2. Create the itch page: https://$ItchUser.itch.io/$Slug"
 } else {
     Write-Host ""
-    Write-Host "Ensuite, dans l'ordre :" -ForegroundColor Green
+    Write-Host "Next, in order:" -ForegroundColor Green
     $n = 1
-    if ($NoCd) { Write-Host "  $n. cd `"$Cible`""; $n++ }
+    if ($NoCd) { Write-Host "  $n. cd `"$Target`""; $n++ }
     if (-not $unity) {
-        Write-Host "  $n. & `"tools/configurer.ps1`" -UnityPath `"<chemin>\Unity.exe`""; $n++
+        Write-Host "  $n. & `"tools/configure.ps1`" -UnityPath `"<path>\Unity.exe`""; $n++
     }
-    Write-Host "  $n. & `"tools/build.ps1`" -Lancer   (premier build : ~20 min, importe le projet)"; $n++
-    Write-Host "  $n. Remplir docs/GDD.md : dans Claude Code, /rediger-le-gdd. Puis la phase 0 de CLAUDE.md."; $n++
-    Write-Host "  $n. Creer la page itch : https://$ItchUser.itch.io/$Slug"
+    Write-Host "  $n. & `"tools/build.ps1`" -Run   (first build: ~20 min, imports the project)"; $n++
+    Write-Host "  $n. Fill in docs/GDD.md: in Claude Code, /write-the-gdd. Then phase 0 of CLAUDE.md."; $n++
+    Write-Host "  $n. Create the itch page: https://$ItchUser.itch.io/$Slug"
 }
 
 Write-Host ""
-Write-Host "Dans Claude Code : /rediger-le-gdd pour ecrire le design, /carte-projet pour explorer," -ForegroundColor Cyan
-Write-Host "/verifier-en-jeu pour constater, /publier-itch pour sortir une version. GUIDE-EQUIPE.md" -ForegroundColor Cyan
-Write-Host "dit qui fait quoi, dans quel ordre." -ForegroundColor Cyan
+Write-Host "In Claude Code: /write-the-gdd to write the design, /project-map to explore," -ForegroundColor Cyan
+Write-Host "/verify-in-game to see it, /publish-itch to ship a version. TEAM-GUIDE.md" -ForegroundColor Cyan
+Write-Host "says who does what, in what order." -ForegroundColor Cyan
 
-# --- 9. Se placer dans le projet ------------------------------------------------------
-# Un Set-Location fait depuis un script vaut pour la session appelante : la location est portee par
-# le runspace, pas par la portee du script. C'est ce qu'on veut ici -- tout ce qui suit (build,
-# tests, Claude Code) se passe dans le projet, et `tools/build.ps1` lance par megarde depuis le
-# gabarit ne construit rien.
-# ⚠ Sans effet si le script tourne dans un processus separe (`powershell -File new-game.ps1`) :
-# celui-ci meurt avec sa location. Le chemin est donc toujours affiche, pas seulement suggere.
+# --- 9. Move into the project ----------------------------------------------------------
+# A Set-Location made from a script applies to the calling session: the location is carried by the
+# runspace, not by the script scope. That is what we want here -- everything that follows (build,
+# tests, Claude Code) happens in the project, and `tools/build.ps1` launched by mistake from the
+# template builds nothing.
+# WARNING: no effect if the script runs in a separate process (`powershell -File new-game.ps1`):
+# that one dies with its location. The path is therefore always printed, not merely suggested.
 if (-not $NoCd) {
-    Set-Location -LiteralPath $Cible
+    Set-Location -LiteralPath $Target
     Write-Host ""
-    Write-Host "Session placee dans $Cible" -ForegroundColor DarkGray
+    Write-Host "Session moved to $Target" -ForegroundColor DarkGray
 }
