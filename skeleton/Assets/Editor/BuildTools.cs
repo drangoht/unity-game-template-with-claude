@@ -173,7 +173,31 @@ namespace __NAMESPACE__.EditorTools
             PlayerSettings.resizableWindow = true;
             PlayerSettings.runInBackground = true;
             PlayerSettings.defaultIsNativeResolution = false;
+            EnsureInputSystemBackend();
             AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>
+        /// WARNING: a project imported from the command line starts with "Active Input Handling" on
+        /// the OLD Input Manager. The Input System package compiles all the same, but the player
+        /// then has no backend for it: <c>Keyboard.current</c>, <c>Mouse.current</c> stay null and
+        /// the game ignores every key and click -- no error, no warning. There is no public API for
+        /// this setting, hence the serialized property.
+        /// </summary>
+        static void EnsureInputSystemBackend()
+        {
+            const int InputSystemOnly = 1;
+            var asset = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset");
+            if (asset.Length == 0) return;
+
+            var settings = new SerializedObject(asset[0]);
+            var handler = settings.FindProperty("activeInputHandler");
+            if (handler == null || handler.intValue == InputSystemOnly) return;
+
+            handler.intValue = InputSystemOnly;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            Debug.LogWarning("Active Input Handling was not on the Input System: fixed. " +
+                             "Commit ProjectSettings/ProjectSettings.asset.");
         }
 
         // ------------------------------------------------------------------ build stamp
