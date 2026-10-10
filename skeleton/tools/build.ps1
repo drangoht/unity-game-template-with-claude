@@ -155,3 +155,8 @@ if ($Run -or $Capture) {
         Write-Host "WARNING: drive_game.py returned $LASTEXITCODE - read its output above." -ForegroundColor Yellow
     }
 }
+
+# WARNING: an explicit exit, ALWAYS. Called with `&` (release_itch.ps1 does), a script that just
+# ends leaves $LASTEXITCODE as it found it -- the code of whatever native command ran last in the
+# session -- and the caller then reports a successful build as failed (or a failed one as fine).
+exit 0
