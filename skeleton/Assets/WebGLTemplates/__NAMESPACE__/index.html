@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <!--
+    WARNING: THIS FILE IS HALF THE MOBILE PORT.
+    Unity can do nothing about what happens BEFORE it: browser zoom, page scrolling, the back
+    gesture from the edge, the long press that opens a system menu, the URL bar that eats the
+    bottom of the screen - hence the touch controls that live there. None of these defects is
+    visible in the editor, none raises an error, and each of them makes the game unplayable with a
+    finger. They are all handled here, in CSS and a few listeners.
+
+    `maximum-scale=1` + `user-scalable=no`: without them, a double tap to act ZOOMS the page.
+    `viewport-fit=cover`: the canvas goes under the notch rather than leaving two bars.
+  -->
+  <meta name="viewport"
+        content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1a1a2e">
+
+  <!--
+    WARNING x2: THIS PAGE MUST NEVER BE CACHED - and it is the link every other one depends on. It
+    is the only one carrying the build id that invalidates the loader, the wasm and the data. Kept
+    in cache, it keeps pointing at the old build's files: the cache buster exists, it is correct,
+    and it never applies. It weighs a few kilobytes, re-downloading it at every launch costs
+    nothing.
+
+    WARNING: these tags are not enough locally: Chrome ignores them for the main document. That is
+    why `tools/serve_web.py` sends real HTTP headers.
+  -->
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <title>{{{ PRODUCT_NAME }}}</title>
+  <meta name="description" content="__PITCH__">
+  <style>
+    :root {
+      --background: #1a1a2e;
+      --background-light: #2a2a45;
+      --ink: #d9d9f2;
+      --accent: #44ffee;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: var(--background);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: var(--ink);
+
+      /* The finger NEVER scrolls, zooms or refreshes: it plays. `touch-action: none` also removes
+         the 300 ms delay some browsers keep to tell a tap from a double tap -- a delay that feels
+         like sluggish input. */
+      touch-action: none;
+      overscroll-behavior: none;
+
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;   /* long press = "copy image" menu on iOS otherwise */
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(160deg, var(--background) 0%, var(--background-light) 100%);
+    }
+
+    canvas {
+      display: block;
+      background: var(--background);
+      image-rendering: auto;
+      outline: none;
+      touch-action: none;
+    }
+
+    /* On mobile, the game takes everything: the centred 16:9 frame is a desktop-window luxury, and
+       on a phone it would make the touch controls smaller for nothing. `dvh` follows the
+       retracting URL bar -- without it the bottom of the game, hence the controls, ends up hidden
+       behind it; `100%` remains the fallback for browsers that ignore it. */
+    body.mobile canvas {
+      width: 100vw !important;
+      height: 100% !important;
+      height: 100dvh !important;
+    }
+
+    /* -------------------------------------------------------------- loading */
+
+    .veil {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.4rem;
+      background: linear-gradient(160deg, var(--background) 0%, var(--background-light) 100%);
+      transition: opacity 0.4s ease;
+    }
+
+    .veil.gone {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.9rem;
+      padding: 1.4rem 2.4rem;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+    }
+
+    .title { margin: 0; font-size: 1.35rem; letter-spacing: 0.02em; }
+
+    .bar {
+      width: min(60vw, 380px);
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      overflow: hidden;
+    }
+
+    .gauge {
+      height: 100%;
+      width: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      transition: width 0.15s ease;
+    }
+
+    .note { margin: 0; font-size: 0.9rem; opacity: 0.7; text-align: center; }
+
+    /* Error message: discreet, but readable without opening the console. */
+    .alert {
+      position: fixed;
+      left: 50%;
+      bottom: 1.2rem;
+      transform: translateX(-50%);
+      max-width: min(90vw, 700px);
+      padding: 0.7rem 1.1rem;
+      border-radius: 12px;
+      background: rgba(255, 220, 120, 0.95);
+      color: #241a00;
+      font-size: 0.9rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="unity-canvas" width="{{{ WIDTH }}}" height="{{{ HEIGHT }}}" tabindex="-1"></canvas>
+
+  <div class="veil" id="loading">
+    <div class="card">
+      <p class="title" id="status">Loading...</p>
+      <div class="bar"><div class="gauge" id="gauge"></div></div>
+      <p class="note" id="controls">__CONTROLS__</p>
+    </div>
+  </div>
+
+  <div class="alert" id="alert"></div>
+
+  <!-- ?v=__BUILD_ID__ : set by BuildTools.StampWebCacheBuster after the build. Without it, the
+       browser serves the loader of one build and the wasm of another - a mix that does not look
+       like a cache problem, but like a broken game. -->
+  <script src="Build/{{{ LOADER_FILENAME }}}?v=__BUILD_ID__"></script>
+  <script>
+    var canvas = document.querySelector("#unity-canvas");
+    var loading = document.querySelector("#loading");
+    var gauge = document.querySelector("#gauge");
+    var status = document.querySelector("#status");
+    var alert = document.querySelector("#alert");
+    var controls = document.querySelector("#controls");
+
+    // A mobile browser, or a machine with no mouse. `maxTouchPoints` is the only reliable test:
+    // the user agent string lies (desktop mode on a phone, an iPad declaring itself a Mac).
+    // It decides three things: the framing, the welcome note, and the pixel ratio.
+    var mobile = (navigator.maxTouchPoints || 0) > 1 ||
+                 /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    if (mobile) {
+      document.body.classList.add("mobile");
+      // WARNING: a note mentioning a keyboard is the first sentence a mobile player reads -- and
+      // it describes a device they do not have.
+      controls.textContent = "Hold the device in landscape -- the controls appear on screen.";
+    }
+
+    // The game is composed for 16:9: on a desktop screen we keep that frame and centre it, rather
+    // than stretching the image to the window. On mobile, the CSS above takes over.
+    var ratio = {{{ WIDTH }}} / {{{ HEIGHT }}};
+
+    function frame() {
+      if (mobile) return;
+
+      var width = window.innerWidth;
+      var height = window.innerHeight;
+      if (width / height > ratio) width = Math.round(height * ratio);
+      else height = Math.round(width / ratio);
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+    }
+
+    frame();
+    window.addEventListener("resize", frame);
+    // Rotating a phone does not always produce a `resize` at the right moment.
+    window.addEventListener("orientationchange", frame);
+
+    // The game keys scroll the page if they are left to the browser: the space bar jumps a screen,
+    // the arrow keys follow the caret, Tab leaves the canvas.
+    var captured = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " ", "Tab"];
+    window.addEventListener("keydown", function (e) {
+      if (captured.indexOf(e.key) >= 0) e.preventDefault();
+    }, { passive: false });
+
+    // A browser does not let a sound start before the page has been touched. Unity opens its audio
+    // context suspended: without this wake-up, the music only triggers by the chance of a click.
+    function wakeAudio() {
+      var ctx = window.WEBAudio && window.WEBAudio.audioContext;
+      if (ctx && ctx.state !== "running") ctx.resume();
+    }
+    ["pointerdown", "touchstart", "keydown"].forEach(function (name) {
+      window.addEventListener(name, wakeAudio);
+    });
+
+    // The keyboard only reaches the game if the canvas has focus.
+    function giveKeyboard() { canvas.focus(); }
+    window.addEventListener("pointerdown", giveKeyboard);
+    window.addEventListener("focus", giveKeyboard);
+
+    function report(message, type) {
+      if (type === "error") {
+        alert.textContent = message;
+        alert.style.display = "block";
+      }
+      console.log(message);
+    }
+
+    var config = {
+      dataUrl: "Build/{{{ DATA_FILENAME }}}?v=__BUILD_ID__",
+      frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}?v=__BUILD_ID__",
+      codeUrl: "Build/{{{ CODE_FILENAME }}}?v=__BUILD_ID__",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "{{{ COMPANY_NAME }}}",
+      productName: "{{{ PRODUCT_NAME }}}",
+      productVersion: "{{{ PRODUCT_VERSION }}}",
+      showBanner: report,
+    };
+
+    // WARNING: THE MOST PROFITABLE PERFORMANCE SETTING OF THE MOBILE PORT.
+    // A recent phone announces a pixel ratio of 3: Unity would then render NINE times more pixels
+    // than the logical panel shows, on a GPU worth a tenth of a desktop card. A 2D game has almost
+    // nothing to gain from it, and the frame rate collapses without any error saying so.
+    if (mobile) config.devicePixelRatio = 1;
+
+    createUnityInstance(canvas, config, function (progress) {
+      gauge.style.width = (progress * 100) + "%";
+    }).then(function (instance) {
+      // Exposed for driving from the console / Claude in Chrome.
+      window.game = instance;
+      loading.classList.add("gone");
+      giveKeyboard();
+      wakeAudio();
+      installMobileGestures(instance);
+    }).catch(function (error) {
+      status.textContent = "The game could not start.";
+      report(error, "error");
+    });
+
+    /**
+     * The three browser gestures that must be disarmed, and the only one that must be armed.
+     */
+    function installMobileGestures(instance) {
+      // 1. The long press opens the context menu over the game. It can only be removed here:
+      //    `-webkit-touch-callout` only covers iOS.
+      canvas.addEventListener("contextmenu", function (e) { e.preventDefault(); }, { passive: false });
+
+      // 2. The double tap still zooms on iOS despite the viewport tag -- it is a separate gesture,
+      //    and it falls exactly on the rhythm of a player tapping twice in a row.
+      canvas.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
+
+      // 3. Swiping from the edge triggers "previous page" on Android -- and swiping from an edge is
+      //    exactly what you do on a control stuck to the edge. A non-passive `touchmove` is the
+      //    only way to hold it back.
+      canvas.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
+
+      if (!mobile) return;
+
+      // 4. Full screen, on the other hand, must be ARMED -- and it requires a user gesture: calling
+      //    it at load time fails silently. Once only, at the first contact; after that the player
+      //    stays in control, the system exit gesture keeps working.
+      //    On iPhone the API does not exist: the `try` stops an exception from halting the script.
+      var armed = true;
+      canvas.addEventListener("pointerdown", function () {
+        if (!armed) return;
+        armed = false;
+        try { instance.SetFullscreen(1); } catch (e) { /* iOS: no full screen, we play anyway */ }
+      });
+    }
+  </script>
+</body>
+</html>

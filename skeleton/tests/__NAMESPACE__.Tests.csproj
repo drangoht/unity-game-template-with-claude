@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.6.6" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.6" />
+  </ItemGroup>
+
+  <!--
+    The pure game logic is compiled BY PATH into the test assembly: a single copy of the code, read
+    by Unity on one side and by `dotnet test` on the other. No engine, no build, no installed Unity
+    is needed. That is what makes it possible to run these tests in CI on a Linux runner, and for a
+    hook to replay them within seconds after every edit.
+
+    WARNING: corollary. A file in Rules/ that wrote `using UnityEngine` breaks this compilation.
+    That is intended: the error arrives at the right moment, before the dependency settles in.
+
+    (No "-" pairs inside this comment: XML forbids them, and MSBuild then refuses to load the
+    project with "An XML comment cannot contain '- -'".)
+  -->
+  <ItemGroup>
+    <Compile Include="..\Assets\Scripts\Rules\*.cs" />
+  </ItemGroup>
+
+</Project>

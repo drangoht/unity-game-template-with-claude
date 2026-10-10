@@ -1,8 +1,8 @@
-# Le gabarit lui-meme ne se compile pas : ces regles servent surtout a ce que le
-# contenu de squelette/ arrive intact dans les projets generes.
+# The template itself does not compile: these rules mostly exist so that the content of skeleton/
+# arrives intact in the generated projects.
 
-# LF partout. Un checkout en CRLF ferait ressortir chaque fichier Unity comme modifie
-# des la premiere sauvegarde de l editeur, dans TOUS les projets issus du gabarit.
+# LF everywhere. A CRLF checkout would make every Unity file show up as modified from the editor's
+# very first save, in ALL projects issued from the template.
 * text=auto eol=lf
 
 *.cs    text diff=csharp eol=lf

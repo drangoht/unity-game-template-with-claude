@@ -1,89 +1,87 @@
-# CLAUDE.md — travailler SUR le gabarit
+# CLAUDE.md -- working ON the template
 
-⚠ **Ce dépôt n'est pas un jeu.** C'est le gabarit dont on instancie les jeux. Le code sous
-`squelette/` n'est jamais compilé ici : il porte des jetons `__XXX__` qui ne sont résolus qu'à
-l'instanciation. Ne « corrige » donc pas un `__NAMESPACE__` qui ressemble à une erreur.
+WARNING: **this repo is not a game.** It is the template that games are instantiated from. The code
+under `skeleton/` is never compiled here: it carries `__XXX__` tokens that are only resolved at
+instantiation time. So do not "fix" a `__NAMESPACE__` that looks like an error.
 
-Ce qu'il fait et comment on s'en sert : **`README.md`**.
+What it does and how it is used: **`README.md`**.
 
-## Ce qui vit où
+## What lives where
 
 ```
-README.md              Le mode d'emploi (c'est LE document du dépôt)
-tools/new-game.ps1     Le scaffolder : demande, copie, substitue, renomme, git init, premier build
-local.settings.json    Réponses mémorisées (dossier des jeux, Unity, pseudo itch) — NON versionné
-squelette/             Tout ce qui est copié dans un nouveau projet
+README.md              The manual (it is THE document of this repo)
+tools/new-game.ps1     The scaffolder: asks, copies, substitutes, renames, git init, first build
+local.settings.json    Remembered answers (games folder, Unity, itch username) -- NOT versioned
+skeleton/              Everything that gets copied into a new project
 ```
 
-Le scaffolder n'a **aucune valeur par défaut tirée de cette machine** : ni dossier de destination,
-ni chemin d'Unity. Ce qui manque est demandé, puis mémorisé dans `local.settings.json`. Les
-fonctions de détection vivent dans `squelette/tools/environnement.ps1`, que `new-game.ps1`
-dot-source — une seule implémentation, pas deux qui divergent.
+The scaffolder has **no default taken from this machine**: neither a destination folder, nor a path
+to Unity. What is missing is asked for, then remembered in `local.settings.json`. The detection
+functions live in `skeleton/tools/environment.ps1`, which `new-game.ps1` dot-sources -- a single
+implementation, not two that drift apart.
 
-## Modifier le squelette
+## Modifying the skeleton
 
-1. **Éditer dans `squelette/`**, jamais dans un projet généré en espérant que ça remonte.
-2. **Utiliser les jetons de la table du README** — pas de nom de jeu en dur, pas de chemin absolu.
-   Un chemin d'outil externe (Unity, Python) passe **obligatoirement** par
-   `tools/environnement.ps1` : `Get-UnityPathOuMourir`, `Resolve-PythonCommand`. Un chemin écrit en
-   dur marche sur la machine où on l'a écrit et nulle part ailleurs — symptôme chez le suivant :
-   « Unity.exe : Le terme «Unity.exe» n'est pas reconnu comme nom d'applet de commande ».
-3. Ce qui n'est pas une extension texte connue (`$extensions` dans `new-game.ps1`) n'est **pas**
-   substitué : ajouter l'extension si un nouveau type de fichier porte un jeton.
-4. **Éprouver l'instanciation** avant de committer :
+1. **Edit inside `skeleton/`**, never in a generated project hoping it will come back.
+2. **Use the tokens from the README's table** -- no hard-coded game name, no absolute path.
+   The path of an external tool (Unity, Python) **must** go through `tools/environment.ps1`:
+   `Get-UnityPathOrDie`, `Resolve-PythonCommand`. A hard-coded path works on the machine where it
+   was written and nowhere else -- the symptom for the next person: "Unity.exe : The term
+   'Unity.exe' is not recognized as the name of a cmdlet".
+3. Anything that is not a known text extension (`$extensions` in `new-game.ps1`) is **not**
+   substituted: add the extension if a new type of file carries a token.
+4. **Exercise the instantiation** before committing:
    ```powershell
-   & "tools/new-game.ps1" -Name "Test Gabarit" -Destination "$env:TEMP" -ItchUser essai -NoGit -NoCd
+   & "tools/new-game.ps1" -Name "Template Test" -Destination "$env:TEMP" -ItchUser trial -NoGit -NoCd -NoRemember
    ```
-   Le script signale lui-même les jetons survivants. Aucun argument n'est demandé de façon
-   interactive ici : c'est la forme à employer depuis un agent ou un CI, où `Read-Host` ne peut
-   pas répondre. `-NoCd` garde la session dans le gabarit — sans lui elle finit dans le dossier
-   d'essai, qu'on supprime juste après, et le shell se retrouve avec un cwd qui n'existe plus.
-   Supprimer le dossier d'essai ensuite.
+   The script reports surviving tokens itself. No argument is asked for interactively here: this is
+   the form to use from an agent or a CI, where `Read-Host` cannot answer. `-NoCd` keeps the session
+   in the template -- without it, it ends up in the trial folder, which we delete just afterwards,
+   and the shell is left with a cwd that no longer exists. Delete the trial folder afterwards.
 
-## Le coût en contexte est un critère de conception
+## Context cost is a design criterion
 
-Tout ce que le squelette fait relire **à chaque tâche** — `CLAUDE.md`, le GDD, `/carte-projet`, les
-pièges — est payé autant de fois qu'il y a de tâches, et une fois de plus par **chaque agent
-délégué**, qui démarre à froid. Mesuré sur un vrai projet issu du gabarit (un Snake, un jour et demi
-d'usage) : GDD 33 ko, pièges 26 ko, carte 12 ko — un sous-agent `developpeur` avalait ≈20 000 jetons
-avant sa première action.
+Everything the skeleton makes people re-read **at every task** -- `CLAUDE.md`, the GDD,
+`/project-map`, the pitfalls -- is paid for as many times as there are tasks, and once more by
+**every delegated agent**, which starts cold. Measured on a real project issued from the template (a
+Snake, a day and a half of use): GDD 33 KB, pitfalls 26 KB, map 12 KB -- a `developer` sub-agent
+swallowed about 20,000 tokens before its first action.
 
-D'où deux règles, à faire respecter dans le squelette comme ici :
+Hence two rules, to be enforced in the skeleton as here:
 
-1. **Un document relu à chaque tâche a un plafond** (`CLAUDE.md` 80 lignes ; GDD et carte 150 ; un
-   fichier de pièges ou de système 150). Atteint, on **scinde** et on laisse un **index** : une
-   ligne par entrée, avec de quoi choisir quoi ouvrir. Le gain est structurel, pas cosmétique — le
-   monolithe des pièges valait 4 700 jetons, un domaine en vaut 800.
-2. **Ajouter au squelette un document que tout le monde relit, c'est ajouter un coût récurrent.**
-   Le mettre derrière un index, ou dans un skill invoqué à la demande.
+1. **A document re-read at every task has a ceiling** (`CLAUDE.md` 80 lines; GDD and map 150; a
+   pitfalls or system file 150). Once reached, we **split** and leave an **index**: one line per
+   entry, with enough to choose what to open. The gain is structural, not cosmetic -- the pitfalls
+   monolith was worth 4,700 tokens, one domain is worth 800.
+2. **Adding to the skeleton a document that everyone re-reads is adding a recurring cost.** Put it
+   behind an index, or in a skill invoked on demand.
 
-## Ajouter un piège à `docs/pitfalls/<domaine>.md`
+## Adding a pitfall to `docs/pitfalls/<domain>.md`
 
-C'est le contenu le plus précieux du dépôt, et il a une règle d'admission stricte :
+It is the most valuable content in the repo, and it has a strict admission rule:
 
-> **Une entrée décrit un défaut qui ne lève AUCUNE erreur.** Ni compilation, ni exception, ni
-> avertissement — seulement un comportement faux. Une bonne pratique ordinaire n'y a pas sa place.
+> **An entry describes a defect that raises NO error.** Neither compilation, nor exception, nor
+> warning -- only wrong behaviour. An ordinary good practice has no place there.
 
-Chaque entrée dit : **ce qui se passe**, **pourquoi ça ne se voit pas**, et **ce qui marche**. Le
-symptôme observé vaut mieux qu'une règle abstraite : « le jeu meurt sur un `RuntimeError: memory
-access out of bounds` de trois cents lignes » est reconnaissable, « attention au cache » ne l'est
-pas.
+Each entry says: **what happens**, **why it does not show**, and **what works**. The observed symptom
+is worth more than an abstract rule -- "the game dies on a three-hundred-line
+`RuntimeError: memory access out of bounds`" is recognisable, "mind the cache" is not.
 
-Marquer **[hérité]** ce qui vient d'un projet antérieur et n'a pas été revérifié depuis.
+Mark **[inherited]** whatever comes from an earlier project and has not been re-verified since.
 
-L'entrée va dans le fichier de son domaine ; `docs/PITFALLS_UNITY.md` n'est plus qu'un index à tenir
-à jour. Aucun domaine ne dépasse ~150 lignes : au-delà, il se scinde à son tour.
+The entry goes into the file of its domain; `docs/PITFALLS_UNITY.md` is now only an index, to be kept
+up to date. No domain goes past ~150 lines: beyond that, it splits in turn.
 
-## Faire évoluer un agent
+## Evolving an agent
 
-Si un agent prend systématiquement une mauvaise décision, **enrichir son `.md`** plutôt que de le
-corriger à chaque session. Un agent déclare une liste `tools:` **fermée** : s'il n'y déclare pas un
-outil, il ne *peut pas* l'appeler, quelle que soit la consigne écrite ailleurs. *Une capacité qu'on
-documente sans la câbler n'existe pas.*
+If an agent systematically takes a wrong decision, **enrich its `.md`** rather than correcting it at
+every session. An agent declares a **closed** `tools:` list: if it does not declare a tool there, it
+*cannot* call it, whatever instruction is written elsewhere. *A capability documented without being
+wired up does not exist.*
 
-## Origine
+## Origin
 
-Distillé de deux projets publiés : **Chimera Protocol** (survivor roguelite, ~800 tests, équipe de
-9 agents) et **Smily Volley** (jeu web, scène construite par code, portage tactile). Quand l'un des
-deux apprend quelque chose de généralisable, le remonter ici ; quand l'un des deux donne tort au
-gabarit, le corriger ici.
+Distilled from two published projects: **Chimera Protocol** (survivor roguelite, ~800 tests, a team
+of 9 agents) and **Smily Volley** (web game, scene built in code, touch port). When one of the two
+learns something generalisable, push it back here; when one of the two proves the template wrong, fix
+it here.

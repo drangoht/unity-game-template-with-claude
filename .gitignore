@@ -1,8 +1,8 @@
-# Le gabarit lui-meme ne se compile pas : rien a ignorer cote Unity.
-# Ce qui suit ne concerne que les essais d instanciation faits sur place.
+# The template itself does not compile: nothing to ignore on the Unity side.
+# What follows only concerns instantiation trials made on the spot.
 
-# Chemins propres a cette machine (dossier des jeux, Unity, Python), memorises par
-# tools/new-game.ps1. Les versionner imposerait l'arborescence d'un poste a tous les autres.
+# Paths specific to this machine (games folder, Unity, Python), remembered by tools/new-game.ps1.
+# Versioning them would impose one workstation's layout on all the others.
 local.settings.json
 
 *.log
@@ -13,6 +13,6 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# ATTENTION : ne JAMAIS ajouter *.meta ici.
-# squelette/Assets/Settings/*.meta portent les GUID des assets URP. Les perdre casse
-# le pipeline de rendu de tous les projets generes ensuite.
+# WARNING: NEVER add *.meta here.
+# skeleton/Assets/Settings/*.meta carry the GUIDs of the URP assets. Losing them breaks the render
+# pipeline of every project generated afterwards.

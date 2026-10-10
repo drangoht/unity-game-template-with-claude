@@ -1,0 +1,84 @@
+name: Unit tests
+
+# The tests cover Assets/Scripts/Rules/ -- pure logic with no engine dependency, compiled directly
+# into the test assembly (see tests/__NAMESPACE__.Tests.csproj). No engine and no build are needed:
+# a Linux runner is enough, and the job runs in a handful of seconds.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A PR that receives several pushes only occupies one runner: previous runs are cancelled.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: xUnit (net8.0)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Install the .NET 8 SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('tests/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore dependencies
+        run: dotnet restore tests/__NAMESPACE__.Tests.csproj
+
+      - name: Build
+        run: dotnet build tests/__NAMESPACE__.Tests.csproj --configuration Release --no-restore
+
+      - name: Run the tests
+        run: |
+          set -o pipefail
+          dotnet test tests/__NAMESPACE__.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --logger "console;verbosity=normal" \
+            --logger "trx;LogFileName=results.trx" \
+            --results-directory TestResults \
+            | tee test-output.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Unit tests"
+            echo ""
+            if grep -qE '^\s*Passed!' test-output.txt 2>/dev/null; then
+              echo '```'
+              grep -E '^\s*(Passed!|Failed!)' test-output.txt
+              echo '```'
+            else
+              echo "Failed -- see the job log and the \`test-results\` artifact."
+              echo ""
+              echo '```'
+              grep -E '^\s*(Failed|error)' test-output.txt | head -30 || true
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the results on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: TestResults/
+          retention-days: 14

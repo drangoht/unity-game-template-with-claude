@@ -1,0 +1,157 @@
+<#
+.SYNOPSIS
+    Builds the game from the command line, without opening the editor.
+
+.DESCRIPTION
+    The single entry point of the build chain: this is the command the README, the agents and the
+    skills all quote. Nobody types Unity's path by hand any more -- it is resolved by
+    tools/environment.ps1 and then remembered.
+
+    The script refuses to start if the editor is open, requires the success ANNOUNCED by BuildTools
+    in the log (a zero exit code does not tell "built" apart from "nothing to do"), then prints the
+    stamp of the binary it produced.
+
+.PARAMETER Target
+    `windows` (default), `web`, or `all` to chain both.
+
+.PARAMETER UnityPath
+    Path to Unity.exe. Useless after the first time: it is remembered in
+    tools/local.settings.json (not versioned).
+
+.PARAMETER Run
+    Chains on to tools/drive_game.py: launches the Windows build and captures the screen. That is
+    the difference between "it compiles" and "I saw it running".
+
+.PARAMETER Method
+    Calls an editor method instead of building -- typically a THROWAWAY file dropped into
+    Assets/Editor to measure some geometry that cannot be proven by playing. Saves having to look
+    up Unity's path for that single use.
+
+.EXAMPLE
+    & "tools/build.ps1"
+    & "tools/build.ps1" -Target web
+    & "tools/build.ps1" -Run -Capture docs/check.png
+    & "tools/build.ps1" -Method __NAMESPACE__.EditorTools.Measures.Check
+    & "tools/build.ps1" -UnityPath "<unity-folder>\<version>\Editor\Unity.exe"
+#>
+
+param(
+    [ValidateSet("windows", "web", "all")][string]$Target = "windows",
+    [string]$UnityPath = "",
+    [string]$Method = "",
+    [switch]$Run,
+    [string]$Capture = "",
+    [switch]$Quiet
+)
+
+# NB: NOT "Stop". Unity writes its progress on stderr, which PowerShell 5.1 takes for an error.
+# Only the process exit code is authoritative.
+$ErrorActionPreference = "Continue"
+
+. "$PSScriptRoot\environment.ps1"
+
+$ProjectRoot = Split-Path -Parent $PSScriptRoot
+
+function Fail($msg) { Write-Host "ERROR: $msg" -ForegroundColor Red; exit 1 }
+
+$Unity = Get-UnityPathOrDie -UnityPath $UnityPath -Remember -Quiet:$Quiet
+
+# WARNING: a command-line build fails if the editor holds the project lock ("another Unity instance
+# is running"). Never kill the editor: someone may be working in it.
+# Unity Hub ships its own "unity.exe serve" (under "Unity Hub\resources"), always running in the
+# background: it is not an editor and holds no lock. A process whose path cannot be read still counts.
+$editors = Get-Process Unity -ErrorAction SilentlyContinue |
+    Where-Object { -not ($_.Path -like "*\Unity Hub\*") }
+if ($editors) {
+    Fail "The Unity editor is open: close it, the command-line build cannot take the lock."
+}
+
+$logsDir = Join-Path $ProjectRoot "Logs"
+if (-not (Test-Path $logsDir)) { New-Item -ItemType Directory -Path $logsDir -Force | Out-Null }
+
+# --- One-off editor method ------------------------------------------------------------
+# Early exit: we are not here to build, but to run a piece of code inside the editor
+# (measurement, diagnosis) and read its log.
+if ($Method) {
+    $log = Join-Path $logsDir "method.log"
+    Write-Host "Calling $Method (log: Logs\method.log)..." -ForegroundColor Yellow
+    $proc = Start-Process -FilePath $Unity -PassThru -Wait -NoNewWindow -ArgumentList @(
+        "-batchmode", "-quit",
+        "-projectPath", $ProjectRoot,
+        "-logFile", $log,
+        "-executeMethod", $Method
+    )
+    if (-not (Test-Path $log)) { Fail "No log written ($log): Unity did not start." }
+    if ($proc.ExitCode -ne 0)  { Fail "$Method failed (code $($proc.ExitCode)) - see $log" }
+    Write-Host "$Method OK - read Logs\method.log" -ForegroundColor Green
+    exit 0
+}
+
+$targets = if ($Target -eq "all") { @("windows", "web") } else { @($Target) }
+
+# The first build of a platform imports every asset and compiles the shaders: reckon on about
+# twenty minutes. It is also what generates ProjectSettings/ and Library/ on a fresh project --
+# so there is nothing to open in Unity Hub beforehand.
+$firstRun = -not (Test-Path (Join-Path $ProjectRoot "Library"))
+if ($firstRun) {
+    Write-Host "First build: Unity imports the whole project (~20 min) and generates Library/." -ForegroundColor Yellow
+}
+
+foreach ($target in $targets) {
+    if ($target -eq "web") {
+        $buildMethod = "__NAMESPACE__.EditorTools.BuildTools.RebuildWeb"
+        $success = "Web build succeeded"
+        $dir     = Join-Path $ProjectRoot "Build\Web"
+    } else {
+        $buildMethod = "__NAMESPACE__.EditorTools.BuildTools.RebuildEverything"
+        $success = "Windows build succeeded"
+        $dir     = Join-Path $ProjectRoot "Build\Windows"
+    }
+
+    $log = Join-Path $logsDir "build-$target.log"
+    Write-Host "Building $target (log: Logs\build-$target.log)..." -ForegroundColor Yellow
+
+    # WARNING: Start-Process and not the call operator `&`: launched with `&`, Unity returns
+    # IMMEDIATELY without doing anything, $LASTEXITCODE stays empty, and the script carries on as
+    # if all were well. A launch that fails silently is worse than a launch that fails.
+    $proc = Start-Process -FilePath $Unity -PassThru -Wait -NoNewWindow -ArgumentList @(
+        "-batchmode", "-quit",
+        "-projectPath", $ProjectRoot,
+        "-logFile", $log,
+        "-executeMethod", $buildMethod
+    )
+
+    if (-not (Test-Path $log))  { Fail "No log written ($log): Unity did not start." }
+    if ($proc.ExitCode -ne 0)   { Fail "$target build failed (code $($proc.ExitCode)) - see $log" }
+    if (-not (Select-String -Path $log -Pattern $success -Quiet)) {
+        Fail "$target build: no confirmed success in $log"
+    }
+
+    # The stamp says WHAT was just built. Neither a file's timestamp (the build is incremental) nor
+    # the Windows metadata (which describes the engine) says it.
+    $stampFile = Join-Path $dir "build_stamp.json"
+    if (Test-Path $stampFile) {
+        $stamp = Get-Content $stampFile -Raw | ConvertFrom-Json
+        Write-Host "$target build OK: v$($stamp.version)-$($stamp.sha)  ->  $dir" -ForegroundColor Green
+    } else {
+        Write-Host "$target build OK  ->  $dir" -ForegroundColor Green
+        Write-Host "WARNING: no build_stamp.json - the binary does not carry its identity." -ForegroundColor Yellow
+    }
+}
+
+# --- See it, rather than conclude it --------------------------------------------------
+if ($Run -or $Capture) {
+    $python = Resolve-PythonCommand -Remember
+    if (-not $python) {
+        Write-Host "WARNING: Python not found, cannot launch the game automatically." -ForegroundColor Yellow
+        Write-Host "  Install Python 3, or fill in tools/local.settings.json: { `"python`": `"...`" }" -ForegroundColor DarkGray
+        exit 0
+    }
+    if (-not $Capture) { $Capture = "docs\check.png" }
+
+    Write-Host "Launching the game and capturing ($Capture)..." -ForegroundColor Cyan
+    & $python (Join-Path $PSScriptRoot "drive_game.py") --launch --wait 4 --capture $Capture
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "WARNING: drive_game.py returned $LASTEXITCODE - read its output above." -ForegroundColor Yellow
+    }
+}
