@@ -38,6 +38,11 @@
     Goes on to the first build after creation. It imports the whole project (~20 min) and makes the
     "open once in Unity Hub" step unnecessary.
 
+.PARAMETER NoRemember
+    Remembers nothing in `local.settings.json` (games folder, itch username, Unity path). For a
+    throwaway trial of the template: without it, `-Destination "$env:TEMP" -ItchUser trial` would
+    become the default of every following game.
+
 .PARAMETER NoCd
     Stays in the current folder. By default the script puts the session inside the created project:
     the rest of the work (build, tests, Claude Code) happens entirely there, and a
@@ -62,6 +67,7 @@ param(
     [string]$Destination = "",
     [switch]$Build,
     [switch]$NoGit,
+    [switch]$NoRemember,
     [switch]$NoCd
 )
 
@@ -215,7 +221,26 @@ if ($unity) { Write-Host ("  {0,-20} {1}" -f "Unity", $unity) -ForegroundColor D
 Write-Host "  -> $Target" -ForegroundColor Cyan
 
 # --- 1. Copy -------------------------------------------------------------------------
-Copy-Item $Skeleton $Target -Recurse -Force
+# What git would hand to a fresh clone: tracked files + new files not ignored yet (a skeleton file
+# being added must be testable before its commit). NOT what lies on this disk: a plain recursive copy
+# also shipped local leftovers that .gitignore keeps out of the template (tools/__pycache__, ...).
+# Without git (template downloaded as a zip), the whole folder is copied as before.
+$listed = $null
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    $listed = git -C $TemplateRoot -c core.quotepath=off ls-files --cached --others --exclude-standard -- skeleton 2>$null
+    if ($LASTEXITCODE -ne 0) { $listed = $null }
+}
+if ($listed) {
+    foreach ($relative in $listed) {
+        $source = Join-Path $TemplateRoot $relative
+        if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { continue } # deleted, not yet committed
+        $destination = Join-Path $Target ($relative.Substring("skeleton/".Length))
+        New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
+        Copy-Item -LiteralPath $source -Destination $destination -Force
+    }
+} else {
+    Copy-Item $Skeleton $Target -Recurse -Force
+}
 
 # --- 2. Renaming of the folders and files carrying tokens -----------------------------
 # From the deepest to the shallowest: renaming a parent first would invalidate the paths collected
@@ -306,9 +331,11 @@ chain, and the Claude Code agent team with its safeguards.
 }
 
 # --- 7. Remembering the answers --------------------------------------------------------
-Set-LocalSetting -Name "gamesRoot" -Value $Destination
-Set-LocalSetting -Name "itchUser"  -Value $ItchUser
-if ($unity) { Set-LocalSetting -Name "unityPath" -Value $unity }
+if (-not $NoRemember) {
+    Set-LocalSetting -Name "gamesRoot" -Value $Destination
+    Set-LocalSetting -Name "itchUser"  -Value $ItchUser
+    if ($unity) { Set-LocalSetting -Name "unityPath" -Value $unity }
+}
 
 Write-Host ""
 Write-Host "Project created: $Target" -ForegroundColor Green

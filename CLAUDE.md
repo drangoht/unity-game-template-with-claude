@@ -32,7 +32,7 @@ implementation, not two that drift apart.
    substituted: add the extension if a new type of file carries a token.
 4. **Exercise the instantiation** before committing:
    ```powershell
-   & "tools/new-game.ps1" -Name "Template Test" -Destination "$env:TEMP" -ItchUser trial -NoGit -NoCd
+   & "tools/new-game.ps1" -Name "Template Test" -Destination "$env:TEMP" -ItchUser trial -NoGit -NoCd -NoRemember
    ```
    The script reports surviving tokens itself. No argument is asked for interactively here: this is
    the form to use from an agent or a CI, where `Read-Host` cannot answer. `-NoCd` keeps the session

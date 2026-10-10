@@ -71,6 +71,7 @@ asked for.
 | `-UnityVersion` | e.g. `6000.5.6f1` | read from the path of the editor found | What `ProjectSettings/ProjectVersion.txt` gets. WARNING: forcing it to a version different from the installed editor makes the Hub offer a migration at the first opening |
 | `-Build` | *switch* | absent: offered interactively, ignored otherwise | Chains the first build straight away (~20 min). Without it **and** without an interactive terminal, the project stays unimported |
 | `-NoGit` | *switch* | absent: `git init` + first commit | Leaves the folder without a repo. Useful for a throwaway trial of the template |
+| `-NoRemember` | *switch* | absent: the answers are remembered | Writes nothing to `local.settings.json`. For a throwaway trial: otherwise its `-Destination` and `-ItchUser` become the defaults of every following game |
 | `-NoCd` | *switch* | absent: the session is placed in the created project | Stays where you are. WARNING: without it, a `tools/build.ps1` typed afterwards does target the game -- that is the point; with it, remember the `cd`. No effect if the script runs in a separate process (`powershell -File`), which dies with its location |
 
 The three reusable answers -- `-Destination`, `-ItchUser`, `-UnityPath` -- are written to
@@ -84,7 +85,7 @@ enough.
 And to exercise the template without leaving anything behind:
 
 ```powershell
-& "tools/new-game.ps1" -Name "Template Test" -Destination "$env:TEMP" -ItchUser trial -NoGit -NoCd
+& "tools/new-game.ps1" -Name "Template Test" -Destination "$env:TEMP" -ItchUser trial -NoGit -NoCd -NoRemember
 ```
 
 ### Nothing machine-specific in the repo
