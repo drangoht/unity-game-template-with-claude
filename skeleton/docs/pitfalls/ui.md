@@ -12,3 +12,10 @@ navigates perfectly with the mouse. Test every screen **with the keyboard and wi
 does not exist for the player: on a previous project, a dash was played for a whole session without
 the tester knowing a key existed. A passive effect with no indicator is believed to be inactive. That
 is an ergonomics bug, not a presentation detail.
+
+**WARNING: a canvas built in code without a `GraphicRaycaster` is deaf.** Its buttons never fire
+`onClick`, and `EventSystem.IsPointerOverGameObject()` answers false over its panels -- so a guard
+"do not treat a click on the UI as a game action" silently lets every click through (found on
+Glassbloom: buying in the shop also blew the bubble, and nothing was bought). No error, no warning:
+the panel is drawn, it just receives nothing. `AddComponent<GraphicRaycaster>()` next to every
+`Canvas` that holds something clickable.
