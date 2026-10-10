@@ -104,9 +104,12 @@ Write-Host "Version : $Version  ->  $Itch`:$Channel" -ForegroundColor Cyan
 # --- 1. Version in the project settings ---------------------------------------------
 # This is what Application.version reads, hence the stamp shown in game AND the comparison with the
 # manifest. Leaving it behind would make the binary announce itself under an old number.
-$content = Get-Content $Settings -Raw
+# WARNING: .NET, not Get-Content / Set-Content: in PowerShell 5.1 `-Encoding utf8` WRITES A BOM, which
+# Unity strips at the next build -- ProjectSettings.asset then shows as modified after every release.
+# (And Get-Content reads a BOM-less UTF-8 file as ANSI.)
+$content = [IO.File]::ReadAllText($Settings)
 $content = $content -replace '(?m)^(\s*bundleVersion:\s*).*$', "`${1}$Version"
-Set-Content -Path $Settings -Value $content -Encoding utf8 -NoNewline
+[IO.File]::WriteAllText($Settings, $content, [Text.UTF8Encoding]::new($false))
 Write-Host "bundleVersion set to $Version." -ForegroundColor DarkGray
 
 # --- 2. Build ----------------------------------------------------------------------

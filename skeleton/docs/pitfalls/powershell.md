@@ -18,3 +18,9 @@ STALE.** The caller then reads the code of whatever native command ran last in t
 script's outcome. Found on Glassbloom: `build.ps1` printed "web build OK", and `release_itch.ps1`
 stopped on "web build failed" right after. (Unity is launched with `Start-Process`, which never sets
 `$LASTEXITCODE`.) Every script another script calls ends with `exit 0`, and fails with `exit 1`.
+
+**WARNING: in PowerShell 5.1, `Set-Content -Encoding utf8` writes a BOM.** Found on Glassbloom:
+`release_itch.ps1` wrote `bundleVersion` that way and committed it; the next Unity build rewrote the file
+without the BOM, so `ProjectSettings.asset` showed as modified after every release -- with no real change.
+(`Get-Content` has the mirror defect: it reads BOM-less UTF-8 as ANSI.) For any file Unity also writes,
+use `[IO.File]::ReadAllText` / `[IO.File]::WriteAllText($path, $text, [Text.UTF8Encoding]::new($false))`.
