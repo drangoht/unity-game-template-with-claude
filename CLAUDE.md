@@ -13,6 +13,7 @@ README.md              The manual (it is THE document of this repo)
 tools/new-game.ps1     The scaffolder: asks, copies, substitutes, renames, git init, first build
 local.settings.json    Remembered answers (games folder, Unity, itch username) -- NOT versioned
 skeleton/              Everything that gets copied into a new project
+modules/<name>/        Optional extras copied over the skeleton on request (`-Discord`)
 ```
 
 The scaffolder has **no default taken from this machine**: neither a destination folder, nor a path

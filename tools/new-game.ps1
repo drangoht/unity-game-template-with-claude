@@ -38,6 +38,15 @@
     Goes on to the first build after creation. It imports the whole project (~20 min) and makes the
     "open once in Unity Hub" step unnecessary.
 
+.PARAMETER Discord
+    Adds the optional Discord Rich Presence module (`modules/discord/`): the DiscordRPC library, the
+    `DiscordPresence` component, the build check that keeps the library out of the web target, and
+    `docs/pitfalls/discord.md` with the set-up checklist. Desktop builds only.
+
+.PARAMETER DiscordAppId
+    Application ID from discord.com/developers (implies -Discord). Optional: without it the module
+    is installed but stays inactive, and the ID goes into `DiscordPresence.cs` later.
+
 .PARAMETER NoRemember
     Remembers nothing in `local.settings.json` (games folder, itch username, Unity path). For a
     throwaway trial of the template: without it, `-Destination "$env:TEMP" -ItchUser trial` would
@@ -52,6 +61,7 @@
     & "tools/new-game.ps1"
     & "tools/new-game.ps1" -Name "My Game" -Pitch "A two-button puzzle." -Build
     & "tools/new-game.ps1" -Name "My Game" -Destination "D:\Games" -UnityPath "D:\Unity\6000.5.6f1"
+    & "tools/new-game.ps1" -Name "My Game" -Discord -DiscordAppId 123456789012345678
 #>
 
 param(
@@ -66,6 +76,8 @@ param(
     [string]$UnityVersion = "",
     [string]$Destination = "",
     [switch]$Build,
+    [switch]$Discord,
+    [string]$DiscordAppId = "",
     [switch]$NoGit,
     [switch]$NoRemember,
     [switch]$NoCd
@@ -150,6 +162,10 @@ if (-not $Namespace) {
 if ($Slug -notmatch '^[a-z0-9][a-z0-9-]*$') {
     Fail "Invalid slug: '$Slug'. Lowercase letters, digits and hyphens only (supply it with -Slug)."
 }
+if ($DiscordAppId) { $Discord = $true }
+if ($DiscordAppId -and $DiscordAppId -notmatch '^\d{17,20}$') {
+    Fail "Invalid -DiscordAppId: '$DiscordAppId'. The Application ID is a number of 17 to 20 digits."
+}
 if ($Namespace -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
     Fail "Invalid namespace: '$Namespace'. A C# identifier is expected (supply it with -Namespace)."
 }
@@ -212,12 +228,18 @@ $tokens = [ordered]@{
     '__UNITY_VERSION__' = $UnityVersion
     '__DATE__'          = (Get-Date -Format "yyyy-MM-dd")
 }
+# Only when the module is copied: an empty ID leaves it installed but inactive.
+if ($Discord) { $tokens['__DISCORD_APP_ID__'] = $DiscordAppId }
 
 Write-Host ""
 $tokens.GetEnumerator() | ForEach-Object {
     Write-Host ("  {0,-20} {1}" -f $_.Key, $_.Value) -ForegroundColor DarkGray
 }
 if ($unity) { Write-Host ("  {0,-20} {1}" -f "Unity", $unity) -ForegroundColor DarkGray }
+if ($Discord) {
+    $state = if ($DiscordAppId) { "yes" } else { "yes, no Application ID yet (inactive)" }
+    Write-Host ("  {0,-20} {1}" -f "Discord module", $state) -ForegroundColor DarkGray
+}
 Write-Host "  -> $Target" -ForegroundColor Cyan
 
 # --- 1. Copy -------------------------------------------------------------------------
@@ -240,6 +262,36 @@ if ($listed) {
     }
 } else {
     Copy-Item $Skeleton $Target -Recurse -Force
+}
+
+# --- 1b. Optional modules -------------------------------------------------------------
+# Copied over the skeleton BEFORE the token pass, so that they are customised like the rest.
+if ($Discord) {
+    $module = Join-Path $TemplateRoot "modules\discord"
+    if (-not (Test-Path $module)) { Fail "Module not found: $module" }
+    Get-ChildItem $module -Recurse -File -Force | ForEach-Object {
+        $destination = Join-Path $Target $_.FullName.Substring($module.Length + 1)
+        New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
+        Copy-Item -LiteralPath $_.FullName -Destination $destination -Force
+    }
+
+    # WARNING: DiscordRPC needs Newtonsoft.Json. Without the package everything COMPILES and the
+    # linker fails, with a message that never names the missing dependency.
+    $manifest = Join-Path $Target "Packages\manifest.json"
+    $json = Get-Content -LiteralPath $manifest -Raw -Encoding UTF8
+    if ($json -notmatch 'com\.unity\.nuget\.newtonsoft-json') {
+        $json = $json -replace '"dependencies":\s*\{', "`"dependencies`": {`n    `"com.unity.nuget.newtonsoft-json`": `"3.2.1`","
+        [IO.File]::WriteAllText($manifest, $json, [Text.UTF8Encoding]::new($false))
+    }
+
+    # The pitfalls index lists the domains: the module's must be findable like the others.
+    $index = Join-Path $Target "docs\PITFALLS_UNITY.md"
+    $row = '| [`pitfalls/discord.md`](pitfalls/discord.md) | Discord Rich Presence, desktop-only plugins | Application ID, Art Assets, WebGL exclusion, Newtonsoft, 15 s limit |'
+    $lines = [Collections.Generic.List[string]]@(Get-Content -LiteralPath $index -Encoding UTF8)
+    $last = -1
+    for ($i = 0; $i -lt $lines.Count; $i++) { if ($lines[$i].StartsWith('| [`pitfalls/')) { $last = $i } }
+    if ($last -ge 0) { $lines.Insert($last + 1, $row) } else { $lines.Add($row) }
+    [IO.File]::WriteAllText($index, (($lines -join "`n") + "`n"), [Text.UTF8Encoding]::new($false))
 }
 
 # --- 2. Renaming of the folders and files carrying tokens -----------------------------
@@ -294,7 +346,7 @@ Write-Host "$touched file(s) customised." -ForegroundColor DarkGray
 # up much later, in the form of a path that does not exist.
 $remaining = Get-ChildItem $Target -Recurse -File -Force |
              Where-Object { $extensions -contains $_.Extension } |
-             Select-String -Pattern '__(GAME_NAME|GAME_SLUG|NAMESPACE|ITCH_USER|COMPANY|PITCH|CONTROLS|UNITY_VERSION|DATE)__' -List
+             Select-String -Pattern '__(GAME_NAME|GAME_SLUG|NAMESPACE|ITCH_USER|COMPANY|PITCH|CONTROLS|UNITY_VERSION|DATE|DISCORD_APP_ID)__' -List
 if ($remaining) {
     Write-Host "WARNING: tokens remain in:" -ForegroundColor Yellow
     $remaining | ForEach-Object { Write-Host "  $($_.Path)" -ForegroundColor Yellow }
@@ -374,6 +426,12 @@ if ($doBuild) {
     Write-Host "  $n. & `"tools/build.ps1`" -Run   (first build: ~20 min, imports the project)"; $n++
     Write-Host "  $n. Fill in docs/GDD.md: in Claude Code, /write-the-gdd. Then phase 0 of CLAUDE.md."; $n++
     Write-Host "  $n. Create the itch page: https://$ItchUser.itch.io/$Slug"
+}
+
+if ($Discord) {
+    Write-Host ""
+    Write-Host "Discord Rich Presence: set-up checklist in docs/pitfalls/discord.md" -ForegroundColor Green
+    if (-not $DiscordAppId) { Write-Host "  (no Application ID yet: the presence stays inactive until AppId is filled in)" }
 }
 
 Write-Host ""

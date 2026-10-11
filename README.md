@@ -70,6 +70,8 @@ asked for.
 | `-UnityPath` | The `Unity.exe`, its `Editor` folder, or the version folder | detected in Unity Hub (2nd drive included), otherwise asked for | The editor used for the builds. Copied into the project's `tools/local.settings.json`, which will never ask for it again |
 | `-UnityVersion` | e.g. `6000.5.6f1` | read from the path of the editor found | What `ProjectSettings/ProjectVersion.txt` gets. WARNING: forcing it to a version different from the installed editor makes the Hub offer a migration at the first opening |
 | `-Build` | *switch* | absent: offered interactively, ignored otherwise | Chains the first build straight away (~20 min). Without it **and** without an interactive terminal, the project stays unimported |
+| `-Discord` | *switch* | absent | Adds the **optional Discord Rich Presence module** (see below). Desktop builds only |
+| `-DiscordAppId` | Application ID (17-20 digits) | none: module installed but inactive | Written into `DiscordPresence.cs`. Implies `-Discord` |
 | `-NoGit` | *switch* | absent: `git init` + first commit | Leaves the folder without a repo. Useful for a throwaway trial of the template |
 | `-NoRemember` | *switch* | absent: the answers are remembered | Writes nothing to `local.settings.json`. For a throwaway trial: otherwise its `-Destination` and `-ItchUser` become the defaults of every following game |
 | `-NoCd` | *switch* | absent: the session is placed in the created project | Stays where you are. WARNING: without it, a `tools/build.ps1` typed afterwards does target the game -- that is the point; with it, remember the `cd`. No effect if the script runs in a separate process (`powershell -File`), which dies with its location |
@@ -87,6 +89,20 @@ And to exercise the template without leaving anything behind:
 ```powershell
 & "tools/new-game.ps1" -Name "Template Test" -Destination "$env:TEMP" -ItchUser trial -NoGit -NoCd -NoRemember
 ```
+
+### Optional modules
+
+Kept out of `skeleton/` because not every game wants them; `new-game.ps1` copies them over the
+skeleton **before** the token pass, so they are customised like the rest.
+
+- **`modules/discord/`** (`-Discord`, `-DiscordAppId`) -- Discord Rich Presence ("Playing My Game",
+  what the player does, session timer), taken from Chimera Protocol: `Assets/Plugins/DiscordRPC.dll`
+  (Lachee/discord-rpc-csharp 1.2.1, MIT) with a `.meta` excluding it from WebGL,
+  `Assets/Scripts/Platform/DiscordPresence.cs` (installs itself, silent when Discord is absent,
+  `SetStatus(details, state)`, `Available` / `Enabled` for the options switch),
+  `Assets/Editor/PluginPlatforms.cs` (a build hook that keeps the DLL out of the web target), the
+  `com.unity.nuget.newtonsoft-json` package, and `docs/pitfalls/discord.md` -- the set-up checklist
+  (Discord application, Art Assets) and its pitfalls, added to the pitfalls index.
 
 ### Nothing machine-specific in the repo
 
@@ -243,6 +259,7 @@ The tokens recognised by `new-game.ps1`:
 | `__CONTROLS__` | ... | note shown during the web loading |
 | `__UNITY_VERSION__` | `6000.5.6f1` | `ProjectVersion.txt`, docs -- derived from the editor found |
 | `__DATE__` | `2026-08-26` | creation date in `CLAUDE.md` |
+| `__DISCORD_APP_ID__` | `123456789012345678` | `DiscordPresence.cs` -- only with `-Discord`; empty without `-DiscordAppId` |
 
 WARNING: **`__BUILD_ID__`, in `index.html`, is NOT a template token**: it is replaced by
 `BuildTools.StampWebCacheBuster` at every build. The scaffolder only replaces the tokens in the table

@@ -59,9 +59,11 @@ $Unity = Get-UnityPathOrDie -UnityPath $UnityPath -Remember -Quiet:$Quiet
 # WARNING: a command-line build fails if the editor holds the project lock ("another Unity instance
 # is running"). Never kill the editor: someone may be working in it.
 # Unity Hub ships its own "unity.exe serve" (under "Unity Hub\resources"), always running in the
-# background: it is not an editor and holds no lock. A process whose path cannot be read still counts.
+# background: it is not an editor and holds no lock. Same for the licensing auth broker
+# ("unity.exe --internal-auth-broker-serve", under %LOCALAPPDATA%\Unity\bin), which recent Hubs keep
+# running too. A process whose path cannot be read still counts.
 $editors = Get-Process Unity -ErrorAction SilentlyContinue |
-    Where-Object { -not ($_.Path -like "*\Unity Hub\*") }
+    Where-Object { -not ($_.Path -like "*\Unity Hub\*" -or $_.Path -like "*\Unity\bin\unity.exe") }
 if ($editors) {
     Fail "The Unity editor is open: close it, the command-line build cannot take the lock."
 }
